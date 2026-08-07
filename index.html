@@ -920,6 +920,70 @@
             animation: headerPulseGlow 8s ease-in-out infinite;
         }
 
+        /* Rastgele Durgun Logo Dönüşü */
+        @keyframes logoSpinIdle {
+            0% { transform: rotateY(0deg) scale(1); filter: drop-shadow(0 0 5px rgba(0, 255, 204, 0.4)); }
+            50% { transform: rotateY(180deg) scale(1.15); filter: drop-shadow(0 0 18px rgba(0, 255, 204, 0.9)); }
+            100% { transform: rotateY(360deg) scale(1); filter: drop-shadow(0 0 5px rgba(0, 255, 204, 0.4)); }
+        }
+
+        .logo-spin-idle {
+            animation: logoSpinIdle 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Puan Kazanıldığında Süper Efektli Logo Dönüşü */
+        @keyframes logoSpinBoost {
+            0% { transform: rotateY(0deg) scale(1); filter: drop-shadow(0 0 10px #00ffcc); }
+            25% { transform: rotateY(360deg) scale(1.35) rotate(4deg); filter: drop-shadow(0 0 25px #fbbf24) brightness(1.6); }
+            60% { transform: rotateY(720deg) scale(1.2) rotate(-4deg); filter: drop-shadow(0 0 35px #ff0055) brightness(1.8); }
+            100% { transform: rotateY(1080deg) scale(1) rotate(0deg); filter: drop-shadow(0 0 10px #00ffcc); }
+        }
+
+        .logo-spin-boost {
+            animation: logoSpinBoost 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+        }
+
+        /* Süzülen Puan Yazısı Pop-up (+1, +5 vs.) */
+        .point-popup-float {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', 'Rajdhani', sans-serif;
+            font-size: 2rem;
+            font-weight: 1000;
+            color: #ffffff;
+            text-shadow:
+                0 0 10px #00ffcc,
+                0 0 22px #fbbf24,
+                0 0 38px #ff0055;
+            pointer-events: none;
+            z-index: 9999;
+            animation: floatPointUp 1.2s cubic-bezier(0.15, 0.85, 0.35, 1.2) forwards;
+            white-space: nowrap;
+        }
+
+        @keyframes floatPointUp {
+            0% {
+                transform: translate(-50%, 10px) scale(0.3);
+                opacity: 0;
+                filter: drop-shadow(0 0 10px #00ffcc);
+            }
+            25% {
+                transform: translate(-50%, -20px) scale(1.45);
+                opacity: 1;
+                filter: drop-shadow(0 0 25px #fbbf24) brightness(1.7);
+            }
+            70% {
+                transform: translate(-50%, -55px) scale(1.1);
+                opacity: 0.95;
+            }
+            100% {
+                transform: translate(-50%, -85px) scale(0.7);
+                opacity: 0;
+            }
+        }
+
         header.top-hud {
             margin-top: 44px;
         }
@@ -3681,6 +3745,45 @@
             }
         }
 
+        let randomLogoSpinTimer = null;
+
+        function startRandomLogoSpinLoop() {
+            if (randomLogoSpinTimer) clearInterval(randomLogoSpinTimer);
+            randomLogoSpinTimer = setInterval(() => {
+                if (!teams || !teams.length) return;
+                const randomIndex = Math.floor(Math.random() * teams.length);
+                const logoEl = document.getElementById(`logo-view-${randomIndex}`);
+                if (logoEl && !logoEl.classList.contains('logo-spin-boost') && !logoEl.classList.contains('logo-spin-idle')) {
+                    logoEl.classList.add('logo-spin-idle');
+                    setTimeout(() => logoEl.classList.remove('logo-spin-idle'), 1250);
+                }
+            }, 4500);
+        }
+
+        function triggerPointPopupAndLogoSpin(index, amount) {
+            const cardEl = document.getElementById(`card-view-${index}`);
+            const logoEl = document.getElementById(`logo-view-${index}`);
+
+            if (logoEl) {
+                logoEl.classList.remove('logo-spin-idle', 'logo-spin-boost');
+                void logoEl.offsetWidth;
+                logoEl.classList.add('logo-spin-boost');
+                setTimeout(() => logoEl.classList.remove('logo-spin-boost'), 1450);
+            }
+
+            if (cardEl) {
+                const popup = document.createElement('div');
+                popup.className = 'point-popup-float';
+                popup.textContent = `+${amount}`;
+                cardEl.appendChild(popup);
+                setTimeout(() => {
+                    if (popup && popup.parentNode) {
+                        popup.parentNode.removeChild(popup);
+                    }
+                }, 1200);
+            }
+        }
+
         function givePoint(index, amount) {
             if (!teams[index]) return;
             const add = Number(amount || 0) || 0;
@@ -3693,10 +3796,13 @@
             // 1. Şimşek & Elektrik Görsel Efekti
             triggerLightningStrike(index);
 
-            // 2. Genel Hediye / Gol Efekt Sesi
+            // 2. Logo Süper Efektli Dönüş & Süzülen +X Puan Yazısı
+            triggerPointPopupAndLogoSpin(index, add);
+
+            // 3. Genel Hediye / Gol Efekt Sesi
             playGiftSfx();
 
-            // 3. Hediye Gelen Takımın Kendi Marşını Anında Çal!
+            // 4. Hediye Gelen Takımın Kendi Marşını Anında Çal!
             playTeamAnthem(index, true);
 
             updateCardOrders();
@@ -4158,6 +4264,8 @@
                     }
                 }, 5000);
             }
+
+            startRandomLogoSpinLoop();
         }
 
         window.addEventListener('beforeunload', saveStateNow);
