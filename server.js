@@ -378,13 +378,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_gift_event', (payload) => {
-    const { token, teamIndex, amount, giftName, nickname, sessionId } = payload || {};
+    const { token, teamIndex, amount, giftName, nickname, profilePictureUrl, sessionId } = payload || {};
     if (token && /^[a-f0-9]{10}$/.test(token)) {
       io.to('account:' + token).emit('gift_event_received', {
         teamIndex,
         amount,
-        giftName: giftName || 'Hediye',
+        giftName,
         nickname: nickname || 'İzleyici',
+        profilePictureUrl: profilePictureUrl || '',
         sessionId
       });
     }
@@ -525,6 +526,17 @@ app.post('/api/account/:token/save', (req, res) => {
             sT.score = Math.max(existingScore, incomingScore);
           }
         }
+      }
+      if (settings.topLikers && typeof settings.topLikers === 'object') {
+        const curLikers = currentServerSettings.topLikers || {};
+        const mergedLikers = { ...curLikers, ...settings.topLikers };
+        for (const [id, liker] of Object.entries(settings.topLikers)) {
+          if (curLikers[id]) {
+            mergedLikers[id].likeCount = Math.max(Number(curLikers[id].likeCount || 0), Number(liker.likeCount || 0));
+            mergedLikers[id].teamVotes = { ...(curLikers[id].teamVotes || {}), ...(liker.teamVotes || {}) };
+          }
+        }
+        settings.topLikers = mergedLikers;
       }
       users[token].settings = settings;
     }

@@ -1988,7 +1988,7 @@
                 const team = teams[idx];
                 const teamName = team ? team.name : `Takım #${idx + 1}`;
 
-                givePoint(idx, amt);
+                givePoint(idx, amt, data);
                 showToast(`🎁 CANLI HEDİYE: ${escapeHtml(teamName)} takımına "${escapeHtml(data.giftName || 'Hediye')}" geldi! (+${amt} puan)`);
             });
 
@@ -2894,6 +2894,22 @@
             renderTopLikers();
         }
 
+        function getFavTeamInfo(liker) {
+            if (!liker || !liker.teamVotes || typeof liker.teamVotes !== 'object') return null;
+            let maxPts = -1;
+            let bestTeamName = null;
+            for (const [tName, pts] of Object.entries(liker.teamVotes)) {
+                const num = Number(pts) || 0;
+                if (num > maxPts && num > 0) {
+                    maxPts = num;
+                    bestTeamName = tName;
+                }
+            }
+            if (!bestTeamName) return null;
+            const teamObj = teams.find(t => t && t.name && t.name.toLowerCase().trim() === bestTeamName.toLowerCase().trim()) || { color: '#00ffcc', name: bestTeamName };
+            return { name: bestTeamName, color: teamObj.color || '#00ffcc', points: maxPts };
+        }
+
         function renderTopLikers() {
             let container = document.getElementById('top-likers-container');
             if (!container) {
@@ -2923,7 +2939,7 @@
                 .slice(0, 12);
             
             let html = '<div style="display:flex; align-items:center; justify-content:center; margin-bottom:5px; width:100%;">';
-            html += '<span style="color:#00ffcc; font-size:10px; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; text-shadow:0 0 8px rgba(0,255,204,0.5);">🔥 EN ÇOK BEĞENENLER 🔥</span>';
+            html += '<span style="color:#00ffcc; font-size:10px; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; text-shadow:0 0 8px rgba(0,255,204,0.5);">🔥 EN ÇOK DESTEKLEYENLER 🔥</span>';
             html += '</div>';
 
             html += '<div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:5px; width:100%; max-width:min(96vw, calc(var(--grid-cols, 3) * var(--card-width, 92px) + (var(--grid-cols, 3) - 1) * 10px)); margin:0 auto; box-sizing:border-box;">';
@@ -2935,17 +2951,22 @@
                     const medalColor = i === 0 ? '#ffe600' : i === 1 ? '#e2e8f0' : i === 2 ? '#fb923c' : '#00ffcc';
                     const img = liker.profilePictureUrl || FALLBACK_AVATAR_B64;
                     const safeName = sanitizeNick(liker.nickname);
+                    const favTeam = getFavTeamInfo(liker);
+
                     html += `
                         <div style="width:100%; background:linear-gradient(145deg, rgba(0,255,204,0.08), rgba(0,0,0,0.65)); border:1px solid rgba(0,255,204,0.3); border-radius:8px; padding:4px 2px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.5); backdrop-filter:blur(4px); box-sizing:border-box;">
                             <div style="position:absolute; top:1px; left:3px; font-size:8px; font-weight:900; color:${medalColor}; text-shadow:0 0 5px ${medalColor}88;">${medal}</div>
                             <img src="${escapeHtml(img)}" style="width:22px; height:22px; border-radius:50%; border:1px solid ${medalColor}; object-fit:cover; margin-top:1px; margin-bottom:1px; box-shadow:0 0 5px rgba(0,255,204,0.3);" onerror="this.onerror=null;this.src='${FALLBACK_AVATAR_B64}'">
                             <div style="color:#ffffff; font-size:7.5px; font-weight:800; width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px; line-height:1.1;" title="${escapeHtml(safeName)}">${escapeHtml(safeName)}</div>
+                            ${favTeam ? `
+                                <div style="font-size:6.5px; font-weight:900; color:${favTeam.color}; background:rgba(0,0,0,0.7); border:1px solid ${favTeam.color}88; padding:0 3px; border-radius:3px; max-width:98%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; line-height:1.2;" title="En Çok Desteklediği: ${escapeHtml(favTeam.name)}">⚽ ${escapeHtml(favTeam.name)}</div>
+                            ` : ''}
                             <div style="color:#00ffcc; font-size:7.5px; font-weight:900; margin-top:1px; background:rgba(0,255,204,0.12); padding:1px 4px; border-radius:999px; border:1px solid rgba(0,255,204,0.25); line-height:1;">❤️ ${liker.likeCount}</div>
                         </div>
                     `;
                 } else {
                     html += `
-                        <div style="width:100%; background:rgba(0,0,0,0.3); border:1px dashed rgba(255,255,255,0.12); border-radius:8px; padding:4px 2px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.4; min-height:50px; box-sizing:border-box;">
+                        <div style="width:100%; background:rgba(0,0,0,0.3); border:1px dashed rgba(255,255,255,0.12); border-radius:8px; padding:4px 2px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.4; min-height:52px; box-sizing:border-box;">
                             <div style="font-size:10px; margin-bottom:1px; opacity:0.7;">❤️</div>
                             <div style="color:rgba(255,255,255,0.5); font-size:6.5px; font-weight:bold; text-align:center; line-height:1;">#${i + 1}</div>
                         </div>
@@ -4476,7 +4497,7 @@
             }
         }
 
-        function givePoint(index, amount) {
+        function givePoint(index, amount, senderData = null) {
             if (!teams[index]) return;
             const add = Number(amount || 0) || 0;
             if (add <= 0) return;
@@ -4484,6 +4505,28 @@
             teams[index].score += add;
             const scoreView = document.getElementById(`score-view-${index}`);
             if (scoreView) scoreView.innerText = String(teams[index].score);
+
+            if (senderData && (senderData.nickname || senderData.uniqueId)) {
+                const id = String(senderData.uniqueId || senderData.userId || senderData.nickname || ('u_' + Math.random().toString(36).slice(2))).trim();
+                const nick = sanitizeNick(senderData.nickname || senderData.uniqueId);
+                const img = senderData.profilePictureUrl ? String(senderData.profilePictureUrl).trim() : '';
+                const teamName = teams[index].name || ('Takım ' + (index + 1));
+
+                if (!topLikers[id]) {
+                    topLikers[id] = {
+                        nickname: nick,
+                        profilePictureUrl: img,
+                        likeCount: 0,
+                        teamVotes: {}
+                    };
+                }
+                if (!topLikers[id].teamVotes) topLikers[id].teamVotes = {};
+                topLikers[id].teamVotes[teamName] = (topLikers[id].teamVotes[teamName] || 0) + add;
+                topLikers[id].likeCount += add;
+                if (img && !topLikers[id].profilePictureUrl) topLikers[id].profilePictureUrl = img;
+                if (nick && nick !== 'İzleyici') topLikers[id].nickname = nick;
+                renderTopLikers();
+            }
 
             if (syncSocket && syncSocket.connected && currentToken) {
                 syncSocket.emit('score_updated_event', {
@@ -4803,7 +4846,12 @@
                     const totalPoints = Number(data.totalDiamondCount || 0) || (Number(data.diamondCount || 0) * Number(data.repeatCount || 1)) || 0;
                     const fallback = Number(matches[0].team.selectedGiftDiamondCount || 1) || 1;
                     const score = totalPoints > 0 ? totalPoints : (fallback * (Number(data.repeatCount || 1) || 1));
-                    matches.forEach(entry => givePoint(entry.index, score));
+                    const senderData = {
+                        nickname: data.nickname || data.userDetails?.nickname || data.user?.nickname || 'İzleyici',
+                        uniqueId: data.uniqueId || data.userId || data.user_id || 'u_' + Math.random().toString(36).slice(2),
+                        profilePictureUrl: data.profilePictureUrl || ''
+                    };
+                    matches.forEach(entry => givePoint(entry.index, score, senderData));
                 });
 
                 socket.on('like', (data) => {
