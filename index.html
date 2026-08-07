@@ -1046,7 +1046,11 @@
                     <div id="yt-playlist-items" class="flex flex-col gap-1 max-h-[160px] overflow-y-auto mb-2"></div>
                     <div class="mini-help">Birden fazla video ekleyebilirsiniz. Sırayla çalar, bittiğinde otomatik diğerine geçer ve döngüye girer.</div>
 
-                    <div class="text-[9px] font-bold text-yellow-400 mt-3 mb-2">🔊 YOUTUBE SES AYARLARI</div>
+                    <div class="text-[9px] font-bold text-yellow-400 mt-3 mb-2">🔊 YOUTUBE SES VE DÖNGÜ AYARLARI</div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input id="yt-video-loop" type="checkbox" checked onchange="updateBgParam('ytLoop', this.checked)">
+                        <label for="yt-video-loop" class="text-[9px] font-bold text-yellow-300 cursor-pointer">🔄 Videoyu / Listeyi Otomatik Tekrarla (Döngü)</label>
+                    </div>
                     <div class="flex items-center gap-2 mb-2">
                         <input id="yt-video-mute" type="checkbox" onchange="updateBgParam('ytMute', this.checked)">
                         <label for="yt-video-mute" class="text-[9px] font-bold text-white cursor-pointer">Videoyu Sustur (Mute)</label>
@@ -1085,7 +1089,11 @@
                 </div>
 
                 <div id="bg-video-controls" style="display:none;background:rgba(0,0,0,0.35);padding:10px;border-radius:10px;border:1px solid rgba(168,85,247,0.3);">
-                    <div class="text-[9px] font-bold text-purple-300 mb-2">🎬 DOSYA VİDEO SES AYARLARI</div>
+                    <div class="text-[9px] font-bold text-purple-300 mb-2">🎬 DOSYA VİDEO AYARLARI</div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input id="bg-video-loop" type="checkbox" checked onchange="updateBgParam('fileVideoLoop', this.checked)">
+                        <label for="bg-video-loop" class="text-[9px] font-bold text-purple-200 cursor-pointer">🔄 Videoyu Otomatik Tekrarla (Döngü)</label>
+                    </div>
                     <div class="flex items-center gap-2 mb-2">
                         <input id="bg-video-mute" type="checkbox" onchange="updateBgParam('mute', this.checked)">
                         <label for="bg-video-mute" class="text-[9px] font-bold text-white cursor-pointer">Videoyu Sustur (Mute)</label>
@@ -2383,9 +2391,18 @@
 
         function playNextYouTubeVideo() {
             if (!Array.isArray(bgState.ytPlaylist) || !bgState.ytPlaylist.length) return;
-            bgState.ytCurrentIndex = (bgState.ytCurrentIndex + 1) % bgState.ytPlaylist.length;
-            loadYouTubePlayer();
-            syncBgControls();
+            const nextIndex = (bgState.ytCurrentIndex || 0) + 1;
+            if (nextIndex >= bgState.ytPlaylist.length) {
+                if (bgState.ytLoop !== false) {
+                    bgState.ytCurrentIndex = 0;
+                    loadYouTubePlayer();
+                    syncBgControls();
+                }
+            } else {
+                bgState.ytCurrentIndex = nextIndex;
+                loadYouTubePlayer();
+                syncBgControls();
+            }
         }
 
         function loadYouTubePlayer() {
@@ -2441,7 +2458,18 @@
                         },
                         onStateChange: (event) => {
                             if (event.data === YT.PlayerState.ENDED) {
-                                playNextYouTubeVideo();
+                                if (bgState.ytPlaylist && bgState.ytPlaylist.length === 1) {
+                                    if (bgState.ytLoop !== false) {
+                                        try {
+                                            event.target.seekTo(0);
+                                            event.target.playVideo();
+                                        } catch (e) {
+                                            playNextYouTubeVideo();
+                                        }
+                                    }
+                                } else {
+                                    playNextYouTubeVideo();
+                                }
                             }
                         },
                         onError: (event) => {
@@ -2499,6 +2527,12 @@
             if (key === 'darken') bgState.darken = Math.max(0, Math.min(90, Number(val) || 0));
             if (key === 'mute') bgState.mute = !!val;
             if (key === 'volume') bgState.volume = Math.max(0, Math.min(100, Number(val) || 50));
+            if (key === 'ytLoop') bgState.ytLoop = !!val;
+            if (key === 'fileVideoLoop') {
+                bgState.fileVideoLoop = !!val;
+                const vid = document.getElementById('bg-video-el');
+                if (vid) vid.loop = !!val;
+            }
             if (key === 'ytMute') {
                 bgState.ytMute = !!val;
                 if (ytPlayer && typeof ytPlayer.mute === 'function') {
@@ -2541,6 +2575,9 @@
                 `;
                 listEl.appendChild(row);
             });
+
+            const ytLoop = document.getElementById('yt-video-loop');
+            if (ytLoop) ytLoop.checked = bgState.ytLoop !== false;
 
             const ytMute = document.getElementById('yt-video-mute');
             if (ytMute) ytMute.checked = !!bgState.ytMute;
@@ -2601,6 +2638,9 @@
             const vidMute = document.getElementById('bg-video-mute');
             if (vidMute) vidMute.checked = !!bgState.mute;
 
+            const vidLoop = document.getElementById('bg-video-loop');
+            if (vidLoop) vidLoop.checked = bgState.fileVideoLoop !== false;
+
             const vidVolVal = document.getElementById('bg-video-vol-val');
             const vidVolSlider = document.getElementById('bg-video-vol-slider');
             if (vidVolVal) vidVolVal.textContent = (bgState.volume ?? 50) + '%';
@@ -2630,6 +2670,7 @@
                 img.style.display = 'none';
                 vid.style.display = 'block';
                 if (vid.src !== currentBgDataUrl) vid.src = currentBgDataUrl;
+                vid.loop = bgState.fileVideoLoop !== false;
                 vid.muted = !!bgState.mute;
                 vid.volume = Math.max(0, Math.min(1, Number(bgState.volume ?? 50) / 100));
                 vid.play().catch(() => {});
