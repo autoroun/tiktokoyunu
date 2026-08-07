@@ -1907,9 +1907,13 @@
                 }
                 const bg = await idbGet('global:background');
                 if (bg) assets['global:background'] = bg;
+                else if (currentBgDataUrl) assets['global:background'] = currentBgDataUrl;
+
                 const bgMusicData = await idbGet('global:bg-music');
                 if (bgMusicData) {
                     assets['global:bg-music'] = bgMusicData;
+                } else if (globalBgMusicDataUrl) {
+                    assets['global:bg-music'] = globalBgMusicDataUrl;
                 }
             } catch (err) { console.error('collectAllAssets error:', err); }
             return assets;
@@ -1940,6 +1944,12 @@
             try {
                 for (const [key, value] of Object.entries(assets)) {
                     if (value) await idbSet(key, value);
+                }
+                const bgData = assets['global:background'];
+                if (bgData) {
+                    currentBgDataUrl = bgData;
+                    await idbSet('global:background', bgData);
+                    applyBackground();
                 }
                 const bgMusicData = assets['global:bg-music'];
                 if (bgMusicData) {
@@ -2503,8 +2513,6 @@
             const bgData = await idbGet('global:background');
             if (bgData) {
                 currentBgDataUrl = bgData;
-            } else {
-                currentBgDataUrl = null;
             }
             
             const bgMusicData = await idbGet('global:bg-music');

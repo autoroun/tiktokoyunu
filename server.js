@@ -12,7 +12,8 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static(__dirname));
 
 // ── GLOBAL HATA YAKALAMA & LOGLAMA ─────────────────────────────
@@ -541,11 +542,13 @@ app.post('/api/account/:token/save', (req, res) => {
       users[token].settings = settings;
     }
   }
-  if (assets && typeof assets === 'object') users[token].assets = assets;
+  if (assets && typeof assets === 'object') {
+    if (!users[token].assets) users[token].assets = {};
+    Object.assign(users[token].assets, assets);
+  }
   users[token].updatedAt = new Date().toISOString();
   saveUsers(users);
-  // Ayni odadaki diger cihazlara gercek zamanli bildir (kaydedeni haric)
-  io.to('account:' + token).emit('settings_updated', { settings: users[token].settings, assets, sessionId });
+  io.to('account:' + token).emit('settings_updated', { settings: users[token].settings, assets: users[token].assets, sessionId });
   return res.json({ ok: true });
 });
 
