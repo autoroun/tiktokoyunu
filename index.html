@@ -219,7 +219,7 @@
         .overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.8);
+            background: transparent;
             display: none;
             z-index: 999;
         }
@@ -233,13 +233,14 @@
             width: 100%;
             max-width: 440px;
             height: 100%;
-            background: #0a0a0a;
+            background: rgba(10, 15, 26, 0.96);
+            backdrop-filter: blur(14px);
             z-index: 1000;
             transition: 0.35s ease;
             padding: 20px;
             border-right: 2px solid #00ffcc;
             overflow-y: auto;
-            box-shadow: 30px 0 60px rgba(0,0,0,.45);
+            box-shadow: 15px 0 50px rgba(0,255,204,0.15), 30px 0 60px rgba(0,0,0,0.8);
         }
 
         #settings-menu.open { left: 0; }
