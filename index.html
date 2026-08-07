@@ -1001,6 +1001,8 @@
         let currentToken = null;
         let currentUsername = null;
         let serverSaveTimer = null;
+        const SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        let syncSocket = null;
 
         async function checkAccountOnLoad() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -1013,6 +1015,8 @@
                         currentToken = urlToken;
                         currentUsername = data.username;
                         if (data.settings) applyServerSettings(data.settings);
+                        if (data.assets) await applyServerAssets(data.assets);
+                        initSettingsSync();
                         return;
                     }
                 } catch (err) {}
@@ -1050,8 +1054,10 @@
                 history.replaceState(null, '', '/' + currentToken);
                 if (data.settings && !data.isNew) {
                     applyServerSettings(data.settings);
+                    if (data.assets) await applyServerAssets(data.assets);
                     renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect();
                 }
+                initSettingsSync();
                 hideLoginModal();
                 updateUserDisplay();
                 showToast(data.isNew ? `Hoş geldin ${currentUsername}! Hesabın oluşturuldu.` : `Hoş geldin ${currentUsername}! Ayarlarınız yüklendi.`);
@@ -1085,12 +1091,51 @@
         async function saveToServer(state) {
             if (!currentToken || !state) return;
             try {
+                // IndexedDB'deki görselleri ve sesleri de topla
+                const assets = {};
+                for (let i = 0; i < (state.teamCount || teamCount); i++) {
+                    const logoKey = `team:${i}:logo`;
+                    const anthemKey = `team:${i}:anthem`;
+                    const logo = await idbGet(logoKey);
+                    if (logo) assets[logoKey] = logo;
+                    const anthem = await idbGet(anthemKey);
+                    if (anthem) assets[anthemKey] = anthem;
+                }
+                const sfx = await idbGet(reminderSfxAssetKey);
+                if (sfx) assets[reminderSfxAssetKey] = sfx;
+
                 await fetch('/api/account/' + currentToken + '/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ settings: state })
+                    body: JSON.stringify({ settings: state, assets, sessionId: SESSION_ID })
                 });
             } catch (err) { console.error('[SAVE] Sunucu kayıt hatası:', err); }
+        }
+
+        async function applyServerAssets(assets) {
+            if (!assets || typeof assets !== 'object') return;
+            try {
+                for (const [key, value] of Object.entries(assets)) {
+                    if (value) await idbSet(key, value);
+                }
+            } catch (err) { console.error('applyServerAssets error:', err); }
+        }
+
+        function initSettingsSync() {
+            if (!currentToken || syncSocket) return;
+            syncSocket = io();
+            syncSocket.on('connect', () => {
+                syncSocket.emit('joinAccountRoom', currentToken);
+                console.log('[SYNC] Hesap odasına katıldı:', currentToken);
+            });
+            syncSocket.on('settings_updated', async (data) => {
+                if (!data || data.sessionId === SESSION_ID) return; // Kendi kaydettimizi yok say
+                if (data.settings) applyServerSettings(data.settings);
+                if (data.assets) await applyServerAssets(data.assets);
+                await hydrateAssets();
+                renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect(); syncAnthemControls();
+                showToast('🔄 Başka cihazdan ayarlar güncellendi!');
+            });
         }
 
         function debounceSaveToServer(state) {

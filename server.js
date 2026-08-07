@@ -12,7 +12,7 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(__dirname));
 
 // ── KULLANICI YÖNETİMİ ──────────────────────────────────────────
@@ -307,6 +307,13 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('joinAccountRoom', (token) => {
+    if (typeof token === 'string' && /^[a-f0-9]{10}$/.test(token)) {
+      socket.join('account:' + token);
+      console.log(`[SYNC] Socket ${socket.id} odaya katildi: account:${token}`);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Istemci ayrildi.');
   });
@@ -343,16 +350,20 @@ app.get('/api/account/:token', (req, res) => {
   const users = loadUsers();
   const user = users[token];
   if (!user) return res.status(404).json({ error: 'Hesap bulunamadı.' });
-  return res.json({ username: user.username, settings: user.settings || null });
+  return res.json({ username: user.username, settings: user.settings || null, assets: user.assets || null });
 });
 
 app.post('/api/account/:token/save', (req, res) => {
   const token = String(req.params.token || '').toLowerCase();
   const users = loadUsers();
   if (!users[token]) return res.status(404).json({ error: 'Hesap bulunamadı.' });
-  users[token].settings = req.body?.settings || null;
+  const { settings, assets, sessionId } = req.body || {};
+  users[token].settings = settings || null;
+  if (assets && typeof assets === 'object') users[token].assets = assets;
   users[token].updatedAt = new Date().toISOString();
   saveUsers(users);
+  // Ayni odadaki diger cihazlara gercek zamanli bildir (kaydedeni haric)
+  io.to('account:' + token).emit('settings_updated', { settings, assets, sessionId });
   return res.json({ ok: true });
 });
 
