@@ -1984,13 +1984,52 @@
                 .replace(/'/g, '&#39;');
         }
 
+        const PRESET_TEAM_LOGOS = {
+            'galatasaray': 'https://upload.wikimedia.org/wikipedia/commons/f/f6/Galatasaray_Sports_Club_Logo.svg',
+            'fenerbahçe': 'https://upload.wikimedia.org/wikipedia/tr/8/86/Fenerbah%C3%A7e_SK.png',
+            'fenerbahce': 'https://upload.wikimedia.org/wikipedia/tr/8/86/Fenerbah%C3%A7e_SK.png',
+            'beşiktaş': 'https://upload.wikimedia.org/wikipedia/commons/2/20/Besiktas_JK_Logo.svg',
+            'besiktas': 'https://upload.wikimedia.org/wikipedia/commons/2/20/Besiktas_JK_Logo.svg',
+            'trabzonspor': 'https://upload.wikimedia.org/wikipedia/tr/a/ab/Trabzonspor_Amblemi.png',
+            'amedspor': 'https://upload.wikimedia.org/wikipedia/tr/1/18/Amed_SFK.png',
+            'amed spor': 'https://upload.wikimedia.org/wikipedia/tr/1/18/Amed_SFK.png',
+            'göztepe': 'https://upload.wikimedia.org/wikipedia/tr/9/9f/G%C3%B6ztepe_SK.png',
+            'goztepe': 'https://upload.wikimedia.org/wikipedia/tr/9/9f/G%C3%B6ztepe_SK.png',
+            'erzurumspor': 'https://upload.wikimedia.org/wikipedia/tr/8/82/B%C3%BCy%C3%BCk%C5%9Fehir_Belediye_Erzurumspor.png',
+            'erzurum spor': 'https://upload.wikimedia.org/wikipedia/tr/8/82/B%C3%BCy%C3%BCk%C5%9Fehir_Belediye_Erzurumspor.png',
+            'başakşehir': 'https://upload.wikimedia.org/wikipedia/tr/c/c8/Ba%C5%9Fak%C5%9Fehir_FK.png',
+            'basaksehir': 'https://upload.wikimedia.org/wikipedia/tr/c/c8/Ba%C5%9Fak%C5%9Fehir_FK.png',
+            'samsunspor': 'https://upload.wikimedia.org/wikipedia/tr/2/26/Samsunspor_logo.png',
+            'sivasspor': 'https://upload.wikimedia.org/wikipedia/tr/b/b5/Sivasspor.png'
+        };
+
+        function getFallbackLogoForTeam(name, index) {
+            const clean = String(name || '').trim().toLowerCase();
+            if (PRESET_TEAM_LOGOS[clean]) return PRESET_TEAM_LOGOS[clean];
+            for (const [key, url] of Object.entries(PRESET_TEAM_LOGOS)) {
+                if (clean.includes(key)) return url;
+            }
+            return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || `T${index + 1}`)}&backgroundColor=0d1527&fontFamily=Arial&bold=true`;
+        }
+
+        function handleLogoError(imgEl, index) {
+            if (!imgEl) return;
+            const team = teams[index];
+            const fallback = getFallbackLogoForTeam(team ? team.name : '', index);
+            if (imgEl.getAttribute('data-failed') !== 'true') {
+                imgEl.setAttribute('data-failed', 'true');
+                imgEl.src = fallback;
+            }
+        }
+
         function makeDefaultTeam(i) {
+            const defaultName = `TAKIM ${i}`;
             return {
                 id: i,
-                name: `TAKIM ${i}`,
+                name: defaultName,
                 abbr: `${i}`,
                 score: 0,
-                logo: `https://api.dicebear.com/7.x/identicon/svg?seed=Team${i}`,
+                logo: getFallbackLogoForTeam(defaultName, i - 1),
                 logoAssetKey: null,
                 logoFileName: '',
                 anthem: null,
@@ -2011,7 +2050,11 @@
             team.score = Number(team.score || 0) || 0;
             team.selectedGiftId = String(team.selectedGiftId || '');
             team.selectedGiftDiamondCount = Number(team.selectedGiftDiamondCount || 0) || 0;
-            if (!team.logo) team.logo = base.logo;
+
+            const fallback = getFallbackLogoForTeam(team.name, index);
+            if (!team.logo || team.logo.includes('dicebear.com/7.x/identicon')) {
+                team.logo = fallback;
+            }
             return team;
         }
 
@@ -2168,7 +2211,13 @@
             for (let i = 0; i < teams.length; i++) {
                 if (teams[i].logoAssetKey) {
                     const logo = await idbGet(teams[i].logoAssetKey);
-                    if (logo) teams[i].logo = logo;
+                    if (logo) {
+                        teams[i].logo = logo;
+                    } else if (!teams[i].logo || teams[i].logo.includes('identicon')) {
+                        teams[i].logo = getFallbackLogoForTeam(teams[i].name, i);
+                    }
+                } else if (!teams[i].logo || teams[i].logo.includes('identicon')) {
+                    teams[i].logo = getFallbackLogoForTeam(teams[i].name, i);
                 }
                 if (teams[i].anthemAssetKey) {
                     const anthem = await idbGet(teams[i].anthemAssetKey);
@@ -2465,7 +2514,7 @@
                         <div class="steam-particle steam-2"></div>
                         <div class="steam-particle steam-3"></div>
                     </div>
-                    <img src="${escapeHtml(team.logo)}" class="team-logo" id="logo-view-${index}" alt="${escapeHtml(team.name)}">
+                    <img src="${escapeHtml(team.logo || getFallbackLogoForTeam(team.name, index))}" class="team-logo" id="logo-view-${index}" alt="${escapeHtml(team.name)}" onerror="handleLogoError(this, ${index})">
                     <div class="score" id="score-view-${index}">${team.score}</div>
                     <div class="team-name" id="name-view-${index}">${escapeHtml(team.name)}</div>
                     <div class="team-gift-badge ${gift ? '' : 'empty'}" id="gift-view-${index}" onclick="sendTestGift(${index})" style="cursor:pointer;" title="Tıkla: Hediyeyi Gönder">${giftBadge}</div>
