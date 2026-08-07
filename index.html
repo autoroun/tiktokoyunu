@@ -1147,17 +1147,23 @@
         </div>
 
         <div class="setting-section border border-blue-500/30">
-            <h3 class="text-[10px] font-bold text-blue-400 mb-4">TIKTOK CANLI YAYIN BAĞLANTISI</h3>
+            <h3 class="text-[10px] font-bold text-blue-400 mb-3">TIKTOK CANLI YAYIN BAĞLANTISI</h3>
             <div class="flex flex-col gap-2">
-                <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)" oninput="updateTikTokUsernameInput(this.value)">
                 <div class="flex gap-2 items-center">
-                    <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">BAĞLAN</button>
+                    <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)" style="flex:1;" oninput="updateTikTokUsernameInput(this.value)" onkeydown="if(event.key==='Enter')connectTikTok()">
+                    <button type="button" onclick="clearTikTokUsername()" class="btn btn-secondary text-[9px] px-2 py-2" title="Kullanıcı Adını Temizle">🗑️</button>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">💾 KAYDET & BAĞLAN</button>
                     <div id="connection-log" class="status-none">Bağlantı Yok</div>
                 </div>
                 <label class="flex items-center gap-2 text-[10px] text-blue-300 font-bold cursor-pointer mt-1">
                     <input id="auto-connect-enabled" type="checkbox" checked onchange="updateAutoConnectSetting(this.checked)">
                     🔄 Otomatik Yeniden Bağlan (5s)
                 </label>
+                <div class="mini-help">Kullanıcı adı hesabınıza kalıcı olarak kaydedilir. Siz silmediğiniz sürece her zaman kayıtlı kalır.</div>
+            </div>
+        </div>
                 <div class="catalog-actions">
                     <button onclick="requestGiftCatalog(true)" class="btn btn-accent flex-1">TR HEDİYE KATALOĞUNU ÇEK</button>
                     <button onclick="openGiftPicker(-1)" class="btn btn-secondary flex-1">KATALOĞU AÇ</button>
@@ -2326,6 +2332,7 @@
                 Object.assign(bgState, state.bgState || {});
                 Object.assign(giftSfxState, state.giftSfxState || {});
                 Object.assign(bgMusicState, state.bgMusicState || {});
+                if (state.tiktokUsername) tiktokTargetUsername = state.tiktokUsername;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -4039,7 +4046,15 @@
 
         function updateTikTokUsernameInput(val) {
             tiktokTargetUsername = String(val || '').trim().replace(/^@+/, '');
-            debounceSave();
+            saveStateNow();
+        }
+
+        function clearTikTokUsername() {
+            tiktokTargetUsername = '';
+            const tInput = document.getElementById('tiktok-username');
+            if (tInput) tInput.value = '';
+            saveStateNow();
+            showToast('TikTok kullanıcı adı temizlendi.');
         }
 
         function updateAutoConnectSetting(enabled) {
@@ -4117,7 +4132,7 @@
                     const btnEl = document.getElementById('btn-connect');
                     if (btnEl) {
                         btnEl.disabled = false;
-                        btnEl.textContent = 'BAĞLAN';
+                        btnEl.textContent = '💾 KAYDET & BAĞLAN';
                         btnEl.className = 'btn btn-primary flex-1';
                     }
                     if (manualDisconnect || !connectRequested) {
@@ -4134,7 +4149,7 @@
                     const btnEl = document.getElementById('btn-connect');
                     if (btnEl) {
                         btnEl.disabled = false;
-                        btnEl.textContent = 'BAĞLAN';
+                        btnEl.textContent = '💾 KAYDET & BAĞLAN';
                         btnEl.className = 'btn btn-primary flex-1';
                     }
                     if (!manualDisconnect) {
@@ -4164,7 +4179,7 @@
                         isConnecting = false;
                         if (btnEl) {
                             btnEl.disabled = false;
-                            btnEl.textContent = 'BAĞLAN';
+                            btnEl.textContent = '💾 KAYDET & BAĞLAN';
                             btnEl.className = 'btn btn-primary flex-1';
                         }
                         if (manualDisconnect) {
