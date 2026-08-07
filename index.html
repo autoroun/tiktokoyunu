@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ŞAMPİYON KİM?</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            --grid-cols: 4;
+            --card-width: 92px;
+            --card-height: 170px;
+            --logo-size: 64px;
+            --score-font: 1.7rem;
+            --abbr-font: 10px;
+            --rem-card-w: 860px;
+            --rem-card-h: auto;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: radial-gradient(circle at top, #101827 0%, #050505 46%, #000 100%);
+            color: white;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-top: 20px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        .neon-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: linear-gradient(to bottom, #fff 20%, #00ffcc 50%, #008877 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(0, 255, 204, 0.6));
+            letter-spacing: -1px;
+        }
+
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-cols), var(--card-width));
+            gap: 10px;
+            padding: 16px;
+            justify-content: center;
+            align-content: flex-start;
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 4px;
+        }
+
+        .team-card {
+            width: var(--card-width);
+            min-height: var(--card-height);
+            background: linear-gradient(145deg, rgba(255,255,255,0.11), rgba(0,0,0,0.46));
+            border: 2px solid rgba(0, 255, 204, 0.2);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            padding: 36px 8px 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .team-card.pumping {
+            transform: scale(1.08);
+            border-color: #fbbf24;
+            box-shadow: 0 0 22px rgba(251,191,36,0.75);
+        }
+
+        .team-card::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0 0;
+            height: 40%;
+            background: linear-gradient(to top, rgba(0,255,204,0.04), transparent);
+            pointer-events: none;
+        }
+
+        .participants-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 3;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(0,0,0,.55);
+            border: 1px solid rgba(255,255,255,.14);
+            color: rgba(255,255,255,.92);
+            font-size: 10px;
+            font-weight: 1000;
+            letter-spacing: .08em;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 30px rgba(0,0,0,.35);
+        }
+
+        .participants-badge b { color: rgba(18,230,200,.95); }
+
+        .abbr-tag {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: var(--abbr-font);
+            font-weight: 900;
+            color: #000;
+            background: #00ffcc;
+            padding: 2px 6px;
+            border-radius: 999px;
+            font-family: 'Orbitron', sans-serif;
+            z-index: 3;
+            box-shadow: 0 0 12px rgba(0,255,204,.4);
+        }
+
+        .team-logo {
+            width: var(--logo-size);
+            height: var(--logo-size);
+            border-radius: 50%;
+            border: 2px solid #00ffcc;
+            margin-bottom: 6px;
+            object-fit: cover;
+            background: #111;
+        }
+
+        .score {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: var(--score-font);
+            color: #fff;
+            font-weight: 700;
+            line-height: 0.9;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.8), 0 0 20px rgba(0, 255, 204, 0.4);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .team-name {
+            font-size: 13px;
+            font-weight: 1000;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(18,230,200,.98);
+            text-align: center;
+            text-shadow:
+                0 0 8px rgba(18,230,200,.45),
+                0 0 18px rgba(18,230,200,.28),
+                0 0 34px rgba(18,230,200,.22);
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .team-gift-badge {
+            margin-top: 10px;
+            width: 100%;
+            min-height: 56px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            text-align: center;
+            font-size: 10px;
+            line-height: 1.15;
+            color: rgba(255,255,255,.88);
+        }
+
+        .team-gift-badge.empty {
+            color: rgba(255,255,255,.38);
+            border-style: dashed;
+        }
+
+        .team-gift-badge:not(.empty) span {
+            display: none;
+        }
+
+        .team-gift-badge img {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            margin-right: 0;
+            object-fit: cover;
+            box-shadow: 0 0 18px rgba(255,255,255,.18);
+        }
+
+        .settings-trigger {
+            font-size: 24px;
+            color: #22c55e;
+            cursor: pointer;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            z-index: 999;
+        }
+
+        .overlay.active { display: block; }
+
+        #settings-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            max-width: 440px;
+            height: 100%;
+            background: #0a0a0a;
+            z-index: 1000;
+            transition: 0.35s ease;
+            padding: 20px;
+            border-right: 2px solid #00ffcc;
+            overflow-y: auto;
+            box-shadow: 30px 0 60px rgba(0,0,0,.45);
+        }
+
+        #settings-menu.open { left: 0; }
+
+        .setting-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        label {
+            font-size: 10px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 10px;
+            font-weight: 700;
+            letter-spacing: .06em;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            background: #141414;
+            border: 1px solid #2b2b2b;
+            color: #fff;
+            padding: 10px 11px;
+            border-radius: 8px;
+            font-size: 12px;
+            width: 100%;
+            outline: none;
+        }
+
+        input[type="file"] {
+            font-size: 10px;
+            color: #aaa;
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #00ffcc;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.18s ease;
+        }
+
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-secondary { background: rgba(255,255,255,.08); color: #fff; }
+        .btn-accent { background: #0891b2; color: #fff; }
+        .btn-success { background: #22c55e; color: #000; }
+
+        #connection-log {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            padding: 10px 8px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 100px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-transform: uppercase;
+        }
+
+        .status-none { color: #9ca3af; background: rgba(0,0,0,0.3); }
+        .status-pending { color: #facc15; background: rgba(250, 204, 21, 0.1); border-color: #facc15 !important; }
+        .status-success { color: #22c55e; background: rgba(34, 197, 94, 0.1); border-color: #22c55e !important; }
+        .status-error { color: #ef4444; background: rgba(239, 68, 68, 0.1); border-color: #ef4444 !important; }
+
+        .catalog-summary {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            font-size: 11px;
+            color: rgba(255,255,255,.82);
+        }
+
+        .team-editor-card {
+            border: 1px solid rgba(255,255,255,.05);
+            background: rgba(255,255,255,.03);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .team-editor-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 10px;
+            color: #34d399;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+        }
+
+        .gift-picker-trigger {
+            cursor: pointer;
+            user-select: none;
+            background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+        }
+
+        .gift-picker-trigger.has-value {
+            border-color: rgba(234,179,8,.55);
+        }
+
+        .mini-help {
+            font-size: 10px;
+            color: rgba(255,255,255,.55);
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .joincard-host, .systemcard-host {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 80000;
+            pointer-events: none;
+        }
+
+        .joincard-host { top: 44%; transform: translate(-50%, -50%); }
+        .systemcard-host { top: 18%; }
+
+        .join-card {
+            width: 350px;
+            height: 350px;
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.16);
+            background: linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+            backdrop-filter: blur(10px);
+            box-shadow: 0 22px 90px rgba(0,0,0,.55);
+            display: flex;
+            position: relative;
+            overflow: hidden;
+            animation: popIn .2s ease-out forwards;
+        }
+
+        .join-card::before {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            border-radius: 28px;
+            background: conic-gradient(from 180deg, rgba(255,255,255,.20), rgba(18,230,200,.28), rgba(255,96,200,.22), rgba(60,140,255,.22), rgba(255,255,255,.20));
+            filter: blur(14px);
+            opacity: .95;
+            animation: joinHue 5.2s linear infinite;
+            z-index: 0;
+        }
+
+        .join-card-inner {
+            width: calc(100% - 18px);
+            height: calc(100% - 18px);
+            margin: 9px;
+            border-radius: 22px;
+            background: rgba(255,255,255,.14);
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 18px;
+        }
+
+        .join-avatar {
+            width: 132px;
+            height: 132px;
+            border-radius: 999px;
+            border: 3px solid rgba(255,255,255,.55);
+            box-shadow: 0 0 24px rgba(18,230,200,.22);
+            object-fit: cover;
+            background: rgba(0,0,0,.2);
+            margin-top: 6px;
+        }
+
+        .join-name {
+            margin-top: 18px;
+            font-size: 22px;
+            font-weight: 1000;
+            color: rgba(255,255,255,.92);
+            text-shadow: 0 0 14px rgba(18,230,200,.18);
+            text-align: center;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .join-teamline {
+            margin-top: 16px;
+            font-size: 15px;
+            font-weight: 900;
+            color: rgba(255,255,255,.82);
+            text-align: center;
+        }
+
+        .join-teamline b {
+            color: rgba(18,230,200,.95);
+            text-shadow: 0 0 16px rgba(18,230,200,.22);
+        }
+
+        .reminder-card {
+            width: min(var(--rem-card-w), 92vw);
+            min-height: 120px;
+            height: var(--rem-card-h);
+            border-radius: 22px;
+            background: linear-gradient(145deg, rgba(12,16,20,.95), rgba(20,24,32,.88));
+            border: 1px solid rgba(18,230,200,.28);
+            box-shadow: 0 16px 60px rgba(0,0,0,.45), 0 0 40px rgba(18,230,200,.12);
+            padding: 20px 22px;
+            opacity: 0;
+            transform: translateY(-14px) scale(.98);
+            transition: .22s ease;
+        }
+
+        .reminder-card.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .reminder-card .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: #00ffcc;
+            letter-spacing: .18em;
+            margin-bottom: 10px;
+        }
+
+        .reminder-card .msg {
+            font-size: 22px;
+            font-weight: 900;
+            line-height: 1.2;
+            color: #fff;
+        }
+
+        .reminder-card .sub {
+            margin-top: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,.62);
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.78);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            padding: 20px;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-card {
+            width: min(900px, 100%);
+            max-height: 86vh;
+            background: #0a0a0a;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 18px 60px rgba(0,0,0,.5);
+        }
+
+        .modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+
+        .modal-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .gift-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .gift-toolbar input {
+            flex: 1 1 260px;
+        }
+
+        .gift-sort-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            min-width: 220px;
+        }
+
+        .gift-sort-wrap label {
+            margin: 0;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .gift-sort-wrap select {
+            margin: 0;
+            min-width: 150px;
+        }
+
+        .gift-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .gift-choice {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.08);
+            background: rgba(255,255,255,.03);
+            cursor: pointer;
+            transition: .18s ease;
+        }
+
+        .gift-choice:hover {
+            border-color: rgba(0,255,204,.4);
+            transform: translateY(-1px);
+        }
+
+        .gift-thumb {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            object-fit: cover;
+            background: rgba(255,255,255,.05);
+            flex: 0 0 auto;
+        }
+
+        .gift-thumb.placeholder {
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            color: #fbbf24;
+        }
+
+        .gift-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        .gift-meta {
+            font-size: 11px;
+            color: rgba(255,255,255,.55);
+            margin-top: 4px;
+            line-height: 1.25;
+        }
+
+        .gift-empty {
+            padding: 30px;
+            border: 1px dashed rgba(255,255,255,.14);
+            border-radius: 14px;
+            text-align: center;
+            color: rgba(255,255,255,.6);
+        }
+
+        .catalog-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toast-host {
+            position: fixed;
+            right: 14px;
+            bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1300;
+        }
+
+        .toast {
+            min-width: 220px;
+            max-width: 320px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(0,0,0,.86);
+            border: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 14px 40px rgba(0,0,0,.35);
+            font-size: 12px;
+            color: #fff;
+        }
+
+        .tech-toggle {
+            position: fixed;
+            right: 14px;
+            top: 156px;
+            z-index: 99999;
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            border: 1px solid rgba(18,230,200,.35);
+            background: rgba(0,0,0,.55);
+            color: rgba(18,230,200,.95);
+            font-weight: 900;
+            box-shadow: 0 14px 40px rgba(0,0,0,.55);
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+        }
+
+        .tech-panel {
+            position: fixed;
+            top: 142px;
+            right: 14px;
+            bottom: 138px;
+            max-height: calc(100vh - 280px);
+            width: min(380px, 92vw);
+            z-index: 100000;
+            border-radius: 18px;
+            border: 1px solid rgba(18,230,200,.25);
+            background: rgba(0,0,0,.62);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 18px 70px rgba(0,0,0,.66), 0 0 40px rgba(18,230,200,.10);
+            overflow: hidden;
+            display: none;
+        }
+
+        .tech-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+
+        .tech-title {
+            font-size: 11px;
+            font-weight: 1000;
+            letter-spacing: .18em;
+            color: rgba(255,255,255,.80);
+        }
+
+        .tech-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.06);
+            color: rgba(255,255,255,.85);
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .tech-body {
+            padding: 12px;
+            overflow: auto;
+            height: calc(100% - 61px);
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes joinHue {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .neon-title { font-size: 1.3rem; }
+            .game-grid { gap: 8px; padding: 12px; }
+            .team-card { padding-top: 32px; }
+            .join-card { width: min(350px, 92vw); height: auto; }
+            .join-avatar { width: 110px; height: 110px; }
+            .join-name { font-size: 18px; }
+            .reminder-card .msg { font-size: 18px; }
+        }
+
+        header.top-hud {
+            margin-top: 44px;
+        }
+    </style>
+</head>
+<body>
+    <header class="top-hud p-4 flex justify-between items-center border-b border-white/10 bg-black/80 z-[110] backdrop-blur">
+        <i class="fas fa-bars settings-trigger" onclick="toggleMenu()"></i>
+        <h1 class="neon-title">ŞAMPİYON KİM?</h1>
+        <div class="w-8"></div>
+    </header>
+
+    <div class="main-layout">
+        <div id="game-container" class="game-grid"></div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <div id="settings-menu">
+        <h2 class="text-xl font-black mb-6 border-b border-white/10 pb-2 text-green-400 font-['Orbitron']">AYARLAR</h2>
+
+        <div class="setting-section border border-blue-500/30">
+            <h3 class="text-[10px] font-bold text-blue-400 mb-4">TIKTOK CANLI YAYIN BAĞLANTISI</h3>
+            <div class="flex flex-col gap-2">
+                <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)">
+                <div class="flex gap-2 items-center">
+                    <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">BAĞLAN</button>
+                    <div id="connection-log" class="status-none">Bağlantı Yok</div>
+                </div>
+                <div class="catalog-actions">
+                    <button onclick="requestGiftCatalog(true)" class="btn btn-accent flex-1">TR HEDİYE KATALOĞUNU ÇEK</button>
+                    <button onclick="openGiftPicker(-1)" class="btn btn-secondary flex-1">KATALOĞU AÇ</button>
+                </div>
+                <div id="catalog-summary" class="catalog-summary">Katalog bekleniyor.</div>
+                <div class="mini-help">Takım panelindeki hediye inputuna tıklayın. Canlıdan gelen katalog açılır; seçtiğiniz hediye o takıma bağlanır. İzleyici istediği takımın hediyesini göndererek o takıma direkt puan kazandırır.</div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <h3 class="text-[10px] font-bold text-white mb-4">BOYUT & GÖRÜNÜM AYARLARI</h3>
+            <div>
+                <label>Kart Genişliği: <span id="w-val">92px</span></label>
+                <input id="style-card-width" type="range" min="50" max="160" value="92" oninput="updateStyle('card-width', this.value + 'px', 'w-val')">
+            </div>
+            <div>
+                <label>Kart Yüksekliği: <span id="h-val">170px</span></label>
+                <input id="style-card-height" type="range" min="90" max="320" value="170" oninput="updateStyle('card-height', this.value + 'px', 'h-val')">
+            </div>
+            <div>
+                <label>Logo Boyutu: <span id="l-val">64px</span></label>
+                <input id="style-logo-size" type="range" min="28" max="150" value="64" oninput="updateStyle('logo-size', this.value + 'px', 'l-val')">
+            </div>
+            <div>
+                <label>Puan Yazı Boyutu: <span id="f-val">1.7rem</span></label>
+                <input id="style-score-font" type="range" min="0.7" max="3.2" step="0.1" value="1.7" oninput="updateStyle('score-font', this.value + 'rem', 'f-val')">
+            </div>
+        </div>
+
+        <div id="team-editor-list"></div>
+
+        <button onclick="toggleMenu()" class="btn btn-success w-full mt-4 sticky bottom-0">KAPAT</button>
+    </div>
+
+    <div id="gift-picker-modal" class="modal">
+        <div class="modal-card">
+            <div class="modal-head">
+                <div>
+                    <div class="text-[11px] font-black tracking-[0.18em] text-yellow-400">TIKTOK HEDİYE KATALOĞU</div>
+                    <div id="gift-picker-subtitle" class="text-[12px] text-white/60 mt-1">Takıma bağlamak için bir hediye seçin.</div>
+                </div>
+                <button onclick="closeGiftPicker()" class="btn btn-secondary">KAPAT</button>
+            </div>
+            <div class="modal-body">
+                <div class="gift-toolbar">
+                    <input type="text" id="gift-search" placeholder="Hediye adı veya ID ara..." oninput="renderGiftPickerList()">
+                    <div class="gift-sort-wrap">
+                        <label for="gift-sort-order">Sıralama</label>
+                        <select id="gift-sort-order" onchange="applyGiftSortOrder(this.value)">
+                            <option value="desc">Puan: Azalan</option>
+                            <option value="asc">Puan: Artan</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="gift-picker-list" class="gift-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <button id="tech-toggle" title="Teknik Ayarlar" class="tech-toggle" onclick="toggleTechPanel()">⚙️</button>
+    <div id="tech-panel" class="tech-panel">
+        <div class="tech-head">
+            <div class="tech-title">TEKNİK AYARLAR</div>
+            <button id="tech-close" class="tech-close" onclick="closeTechPanel()">✕</button>
+        </div>
+        <div class="tech-body">
+            <div class="setting-section border border-cyan-500/20">
+                <h3 class="text-[10px] font-bold text-cyan-300 mb-3">TAKIM ADEDİ</h3>
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-[10px] text-white/70 font-bold">Seçim (4–18)</div>
+                    <select id="team-count-select" class="bg-black/40 border border-cyan-500/30 text-white text-[10px] font-bold px-2 py-1 rounded"></select>
+                </div>
+                <div class="text-[10px] text-white/55 font-bold mt-2">Takım sayısını değiştirince grid otomatik yeniden dizilir ve veriler korunur.</div>
+            </div>
+
+            <div class="setting-section border border-amber-500/20">
+                <h3 class="text-[10px] font-bold text-amber-300 mb-4">MARŞ SESİ</h3>
+                <div class="flex flex-col gap-3">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-white/70 font-bold">Ses Seviyesi</span>
+                            <span id="anthem-volume-val" class="text-[10px] text-amber-200 font-black">90%</span>
+                        </div>
+                        <input id="anthem-volume" type="range" min="0" max="100" step="1" value="90">
+                    </div>
+                    <label class="flex items-center gap-2 text-[10px] text-white/80 font-bold !mt-0">
+                        <input id="anthem-mute" type="checkbox">
+                        Marşı Sustur
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-section border border-fuchsia-500/20">
+                <h3 class="text-[10px] font-bold text-fuchsia-300 mb-4">HATIRLATMA KARTI BOYUTU</h3>
+                <div class="flex flex-col gap-3">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-white/70 font-bold">Genişlik (px)</span>
+                            <span id="rem-w-val" class="text-[10px] text-fuchsia-200 font-black">860</span>
+                        </div>
+                        <input id="rem-w" type="range" min="320" max="980" step="10" value="860">
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-white/70 font-bold">Yükseklik (px)</span>
+                            <span id="rem-h-val" class="text-[10px] text-fuchsia-200 font-black">0</span>
+                        </div>
+                        <input id="rem-h" type="range" min="0" max="520" step="10" value="0">
+                        <div class="text-[10px] text-white/55 font-bold">0 = Otomatik</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-section border border-pink-500/20">
+                <h3 class="text-[10px] font-bold text-pink-300 mb-4">UYARI KARTI</h3>
+                <div class="flex flex-col gap-3">
+                    <label class="flex items-center gap-2 text-[10px] text-white/80 font-bold !mt-0">
+                        <input id="reminder-enabled" type="checkbox" checked>
+                        Bilgilendirme Kartını Göster
+                    </label>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-white/70 font-bold">Sıklık (sn)</span>
+                            <span id="reminder-interval-val" class="text-[10px] text-pink-200 font-black">60</span>
+                        </div>
+                        <input id="reminder-interval" type="range" min="30" max="300" step="10" value="60">
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-white/70 font-bold">Ekranda Kalma (sn)</span>
+                            <span id="reminder-duration-val" class="text-[10px] text-pink-200 font-black">4</span>
+                        </div>
+                        <input id="reminder-duration" type="range" min="1" max="10" step="0.5" value="4">
+                    </div>
+                    <label class="flex items-center gap-2 text-[10px] text-white/70 font-bold !mt-0">
+                        <input id="reminder-mute" type="checkbox">
+                        Sessiz Mod
+                    </label>
+                    <div class="flex flex-col gap-2">
+                        <span class="text-[10px] text-white/70 font-bold">Metin</span>
+                        <textarea id="reminder-text" rows="3">DESTEKLEMEK İSTEDİĞİN TAKIMIN HEDİYESİNİ GÖNDER</textarea>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="reminder-sfx" type="file" accept="audio/*" class="flex-1">
+                        <span id="reminder-sfx-val" class="text-[10px] text-white/60 font-bold">Yok</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="systemcard-host" class="systemcard-host"></div>
+    <div id="toast-host" class="toast-host"></div>
+
+    <script>
+        const STORAGE_KEY = 'champion_kim_state_v4';
+        const DB_NAME = 'champion-kim-assets';
+        const DB_STORE = 'files';
+        const DEFAULT_REMINDER_TEXT = 'DESTEKLEMEK İSTEDİĞİN TAKIMIN HEDİYESİNİ GÖNDER';
+
+        let socket = null;
+        let isConnected = false;
+        let connectRequested = false;
+        let activeGiftTeamIndex = null;
+        let teamCount = 18;
+        let teams = [];
+        let giftCatalog = [];
+        let giftSortOrder = 'desc';
+        let reminderTimer = null;
+        let reminderShowing = false;
+        let reminderSfxUrl = '';
+        let reminderSfxAssetKey = 'global:reminder-sfx';
+        let reminderSfxAudio = null;
+        let leaderAnthemAudio = null;
+        let lastLeaderTeamId = null;
+        let saveTimer = null;
+        let manualDisconnect = false;
+
+        const styleState = {
+            'card-width': '92px',
+            'card-height': '170px',
+            'logo-size': '64px',
+            'score-font': '1.7rem',
+            'abbr-font': '10px'
+        };
+
+        const reminderState = {
+            enabled: true,
+            intervalSec: 60,
+            showSec: 4,
+            mute: false,
+            text: DEFAULT_REMINDER_TEXT,
+            sfxAssetKey: reminderSfxAssetKey
+        };
+
+        const anthemState = {
+            volume: 0.9,
+            mute: false
+        };
+
+        let audioUnlockCtx = null;
+        let audioUnlocked = false;
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function makeDefaultTeam(i) {
+            return {
+                id: i,
+                name: `TAKIM ${i}`,
+                abbr: `${i}`,
+                score: 0,
+                logo: `https://api.dicebear.com/7.x/identicon/svg?seed=Team${i}`,
+                logoAssetKey: null,
+                logoFileName: '',
+                anthem: null,
+                anthemAssetKey: null,
+                anthemFileName: '',
+                selectedGiftId: '',
+                selectedGiftName: '',
+                selectedGiftImage: '',
+                selectedGiftDiamondCount: 0,
+                color: '#00ffcc'
+            };
+        }
+
+        function normalizeTeam(raw, index) {
+            const base = makeDefaultTeam(index + 1);
+            const team = { ...base, ...(raw || {}) };
+            team.id = index + 1;
+            team.score = Number(team.score || 0) || 0;
+            team.selectedGiftId = String(team.selectedGiftId || '');
+            team.selectedGiftDiamondCount = Number(team.selectedGiftDiamondCount || 0) || 0;
+            return team;
+        }
+
+        function clampTeamCount(value) {
+            return Math.max(4, Math.min(18, Number(value) || 18));
+        }
+
+        function applyGridCols(n) {
+            const cols = (n <= 4) ? n : (n <= 9 ? 3 : 4);
+            document.documentElement.style.setProperty('--grid-cols', String(cols));
+        }
+
+        function getSelectedGiftMeta(team) {
+            if (!team || !team.selectedGiftId) return null;
+            const live = giftCatalog.find(item => String(item.id) === String(team.selectedGiftId));
+            if (live) return live;
+            return {
+                id: team.selectedGiftId,
+                name: team.selectedGiftName || `Gift ${team.selectedGiftId}`,
+                image: team.selectedGiftImage || '',
+                diamondCount: Number(team.selectedGiftDiamondCount || 0) || 0
+            };
+        }
+
+        function formatGiftSummary(team) {
+            const gift = getSelectedGiftMeta(team);
+            if (!gift) return 'Hediye seçilmedi';
+            const diamonds = Number(gift.diamondCount || 0) || 0;
+            return diamonds > 0 ? `${gift.name} • ${diamonds} puan` : gift.name;
+        }
+
+        function getSortedGiftCatalog(source = giftCatalog) {
+            return [...(Array.isArray(source) ? source : [])].sort((a, b) => {
+                const aDiamonds = Number(a?.diamondCount || 0) || 0;
+                const bDiamonds = Number(b?.diamondCount || 0) || 0;
+                if (aDiamonds !== bDiamonds) {
+                    return giftSortOrder === 'asc' ? aDiamonds - bDiamonds : bDiamonds - aDiamonds;
+                }
+                return String(a?.name || '').localeCompare(String(b?.name || ''), 'tr');
+            });
+        }
+
+        function applyGiftSortOrder(value, options = {}) {
+            giftSortOrder = value === 'asc' ? 'asc' : 'desc';
+            const select = document.getElementById('gift-sort-order');
+            if (select) select.value = giftSortOrder;
+            renderCatalogSummary();
+            renderGiftPickerList();
+            if (options.save !== false) debounceSave();
+        }
+
+        function debounceSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveStateNow, 180);
+        }
+
+        function serializeTeams() {
+            return teams.map(team => {
+                const copy = { ...team };
+                copy.score = 0;
+                if (copy.logoAssetKey && String(copy.logo || '').startsWith('data:')) {
+                    copy.logo = '';
+                }
+                if (copy.anthemAssetKey && String(copy.anthem || '').startsWith('data:')) {
+                    copy.anthem = '';
+                }
+                copy.logoFileName = String(copy.logoFileName || '');
+                copy.anthemFileName = String(copy.anthemFileName || '');
+                return copy;
+            });
+        }
+
+        function saveStateNow() {
+            try {
+                const state = {
+                    version: 7,
+                    teamCount,
+                    teams: serializeTeams(),
+                    giftCatalog,
+                    giftSortOrder,
+                    styleState,
+                    reminderState,
+                    anthemState,
+                    techPanelOpen: document.getElementById('tech-panel').style.display !== 'none'
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (err) {
+                console.error('State save error:', err);
+            }
+        }
+
+        async function openAssetDb() {
+            return await new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(DB_STORE)) {
+                        db.createObjectStore(DB_STORE);
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function idbSet(key, value) {
+            const db = await openAssetDb();
+            return await new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readwrite');
+                tx.objectStore(DB_STORE).put(value, key);
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function idbGet(key) {
+            const db = await openAssetDb();
+            return await new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readonly');
+                const request = tx.objectStore(DB_STORE).get(key);
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function hydrateAssets() {
+            for (let i = 0; i < teams.length; i++) {
+                if (teams[i].logoAssetKey) {
+                    const logo = await idbGet(teams[i].logoAssetKey);
+                    if (logo) teams[i].logo = logo;
+                }
+                if (teams[i].anthemAssetKey) {
+                    const anthem = await idbGet(teams[i].anthemAssetKey);
+                    if (anthem) teams[i].anthem = anthem;
+                }
+            }
+
+            if (reminderState.sfxAssetKey) {
+                const sfx = await idbGet(reminderState.sfxAssetKey);
+                if (sfx) {
+                    reminderSfxUrl = sfx;
+                    reminderSfxAudio = null;
+                }
+            }
+        }
+
+        function getStoredStateObject() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            } catch (err) {
+                return {};
+            }
+        }
+
+        function loadState() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+                teamCount = 18;
+                teams = Array.from({ length: teamCount }, (_, i) => makeDefaultTeam(i + 1));
+                applyGridCols(teamCount);
+                return;
+            }
+
+            try {
+                const state = JSON.parse(raw);
+                teamCount = clampTeamCount(state.teamCount);
+                const savedTeams = Array.isArray(state.teams) ? state.teams : [];
+                teams = [];
+                for (let i = 0; i < teamCount; i++) {
+                    const restoredTeam = normalizeTeam(savedTeams[i], i);
+                    restoredTeam.score = 0;
+                    teams.push(restoredTeam);
+                }
+                giftCatalog = Array.isArray(state.giftCatalog) ? state.giftCatalog : [];
+                giftSortOrder = state.giftSortOrder === 'asc' ? 'asc' : 'desc';
+                Object.assign(styleState, state.styleState || {});
+                Object.assign(reminderState, state.reminderState || {});
+                Object.assign(anthemState, state.anthemState || {});
+                anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                anthemState.mute = !!anthemState.mute;
+                reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
+                applyGridCols(teamCount);
+            } catch (err) {
+                console.error('State load error:', err);
+                teamCount = 18;
+                teams = Array.from({ length: teamCount }, (_, i) => makeDefaultTeam(i + 1));
+                applyGridCols(teamCount);
+            }
+        }
+
+        function applySavedUi() {
+            document.getElementById('tiktok-username').value = '';
+            const giftSortSelect = document.getElementById('gift-sort-order');
+            if (giftSortSelect) giftSortSelect.value = giftSortOrder;
+
+            Object.entries(styleState).forEach(([key, value]) => {
+                document.documentElement.style.setProperty(`--${key}`, value);
+            });
+
+            setSliderFromStyle('card-width', 'w-val');
+            setSliderFromStyle('card-height', 'h-val');
+            setSliderFromStyle('logo-size', 'l-val');
+            setSliderFromStyle('score-font', 'f-val');
+
+            document.getElementById('reminder-enabled').checked = reminderState.enabled !== false;
+            document.getElementById('reminder-interval').value = String(reminderState.intervalSec || 60);
+            document.getElementById('reminder-duration').value = String(reminderState.showSec || 4);
+            document.getElementById('reminder-mute').checked = Boolean(reminderState.mute);
+            document.getElementById('reminder-text').value = reminderState.text || DEFAULT_REMINDER_TEXT;
+            document.getElementById('anthem-volume').value = String(Math.round((Number(anthemState.volume || 0) || 0) * 100));
+            document.getElementById('anthem-mute').checked = Boolean(anthemState.mute);
+            syncReminderLabels();
+            syncAnthemControls();
+            document.getElementById('reminder-sfx-val').textContent = reminderSfxUrl ? 'Yüklü' : 'Yok';
+
+            const remW = localStorage.getItem('ui_rem_w') || '860';
+            const remH = localStorage.getItem('ui_rem_h') || '0';
+            document.getElementById('rem-w').value = remW;
+            document.getElementById('rem-h').value = remH;
+            applyReminderSize(remW, remH);
+        }
+
+        function setSliderFromStyle(prop, labelId) {
+            const inputIdMap = {
+                'card-width': 'style-card-width',
+                'card-height': 'style-card-height',
+                'logo-size': 'style-logo-size',
+                'score-font': 'style-score-font',
+            };
+            const input = document.getElementById(inputIdMap[prop]);
+            if (!input) return;
+            let numeric = styleState[prop];
+            if (numeric.endsWith('px')) numeric = numeric.replace('px', '');
+            if (numeric.endsWith('rem')) numeric = numeric.replace('rem', '');
+            input.value = numeric;
+            document.getElementById(labelId).innerText = styleState[prop];
+        }
+
+        function renderCatalogSummary() {
+            const el = document.getElementById('catalog-summary');
+            if (!el) return;
+            if (!giftCatalog.length) {
+                el.textContent = isConnected ? 'Bağlantı var ama katalog henüz gelmedi. “TR HEDİYE KATALOĞUNU ÇEK” butonuna basabilirsiniz.' : 'Katalog bekleniyor. Önce canlı yayına bağlanın.';
+                return;
+            }
+            const sortedCatalog = getSortedGiftCatalog();
+            const edgeGift = sortedCatalog[0];
+            const edgeLabel = giftSortOrder === 'asc' ? 'En düşük görünen hediye' : 'En yüksek görünen hediye';
+            const sortLabel = giftSortOrder === 'asc' ? 'artan' : 'azalan';
+            el.textContent = `${giftCatalog.length} hediye yüklendi. Sıralama: ${sortLabel}. ${edgeLabel}: ${edgeGift.name}${edgeGift.diamondCount ? ` (${edgeGift.diamondCount} puan)` : ''}.`;
+        }
+
+        function renderGame() {
+            const container = document.getElementById('game-container');
+            container.innerHTML = '';
+            teams.forEach((team, index) => {
+                const card = document.createElement('div');
+                card.className = 'team-card';
+                card.id = `card-view-${index}`;
+                const gift = getSelectedGiftMeta(team);
+                const giftBadge = gift
+                    ? `${gift.image ? `<img src="${escapeHtml(gift.image)}" alt="">` : ''}<span>${escapeHtml(gift.name)}${gift.diamondCount ? ` • ${gift.diamondCount}` : ''}</span>`
+                    : '<span>Hediye seçilmedi</span>';
+                card.innerHTML = `
+                    <img src="${escapeHtml(team.logo)}" class="team-logo" id="logo-view-${index}" alt="${escapeHtml(team.name)}">
+                    <div class="score" id="score-view-${index}">${team.score}</div>
+                    <div class="team-name" id="name-view-${index}">${escapeHtml(team.name)}</div>
+                    <div class="team-gift-badge ${gift ? '' : 'empty'}" id="gift-view-${index}">${giftBadge}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderTeamEditors() {
+            const list = document.getElementById('team-editor-list');
+            list.innerHTML = '<h3 class="text-[10px] font-bold text-white my-4 uppercase">TAKIM VERİLERİ</h3>';
+            teams.forEach((team, index) => {
+                const giftText = formatGiftSummary(team);
+                const anthemLabel = team.anthemFileName ? `Yüklü: ${team.anthemFileName}` : (team.anthem ? 'Yüklü' : 'Yok');
+                const logoLabel = team.logoFileName ? `Yüklü: ${team.logoFileName}` : (team.logoAssetKey ? 'Yüklü' : 'Varsayılan');
+                const div = document.createElement('div');
+                div.className = 'team-editor-card';
+                div.innerHTML = `
+                    <div class="team-editor-head">
+                        <span>TAKIM SLOT #${index + 1}</span>
+                        <span>HEDİYE İLE OYLANIR</span>
+                    </div>
+                    <label>TAKIM İSMİ</label>
+                    <input type="text" value="${escapeHtml(team.name)}" onchange="updateTeamData(${index}, 'name', this.value)">
+                    <label>TAKIM HEDİYESİ</label>
+                    <div class="flex gap-2 items-center mt-1">
+                        <input type="text" readonly value="${escapeHtml(giftText)}" class="gift-picker-trigger ${team.selectedGiftId ? 'has-value' : ''}" onclick="openGiftPicker(${index})">
+                        <button class="btn btn-secondary" onclick="openGiftPicker(${index})">SEÇ</button>
+                        <button class="btn btn-danger" onclick="clearTeamGift(${index})">TEMİZLE</button>
+                    </div>
+                    <div class="mini-help">Bu takıma ait özel hediye burada seçilir. İzleyici bu hediyeyi gönderdiğinde puan doğrudan bu takıma eklenir.</div>
+                    <div class="grid grid-cols-2 gap-2 mt-3">
+                        <div>
+                            <label>LOGO YÜKLE</label>
+                            <input type="file" accept="image/*" onchange="handleTeamFile(this, ${index}, 'logo')">
+                            <div class="mini-help mt-1">${escapeHtml(logoLabel)}</div>
+                        </div>
+                        <div>
+                            <label>MARŞ YÜKLE</label>
+                            <input type="file" accept="audio/*" onchange="handleTeamFile(this, ${index}, 'anthem')">
+                            <div class="mini-help mt-1">${escapeHtml(anthemLabel)}</div>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function renderGiftPickerList() {
+            const list = document.getElementById('gift-picker-list');
+            const search = document.getElementById('gift-search').value.trim().toLowerCase();
+            const target = activeGiftTeamIndex >= 0 ? teams[activeGiftTeamIndex] : null;
+            const subtitle = document.getElementById('gift-picker-subtitle');
+            subtitle.textContent = target ? `${target.name} için bir hediye seçin.` : 'Canlıdan gelen hediyeleri görüntülüyorsunuz. Seçtiğiniz hediye, seçtiğiniz takımın oy hediyesi olur.';
+
+            list.innerHTML = '';
+            const filtered = getSortedGiftCatalog().filter(gift => {
+                if (!search) return true;
+                return String(gift.name).toLowerCase().includes(search) || String(gift.id).toLowerCase().includes(search);
+            });
+
+            if (!filtered.length) {
+                const empty = document.createElement('div');
+                empty.className = 'gift-empty';
+                empty.innerHTML = giftCatalog.length
+                    ? 'Aramanıza uygun hediye bulunamadı.'
+                    : 'Henüz katalog yok. Önce canlı yayına bağlanın veya “TR HEDİYE KATALOĞUNU ÇEK” butonunu kullanın.';
+                list.appendChild(empty);
+                return;
+            }
+
+            filtered.forEach(gift => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'gift-choice text-left';
+                item.onclick = () => selectGiftForActiveTeam(gift);
+                const thumb = gift.image
+                    ? `<img class="gift-thumb" src="${escapeHtml(gift.image)}" alt="${escapeHtml(gift.name)}">`
+                    : '<div class="gift-thumb placeholder">🎁</div>';
+                item.innerHTML = `
+                    ${thumb}
+                    <div>
+                        <div class="gift-title">${escapeHtml(gift.name)}</div>
+                        <div class="gift-meta">ID: ${escapeHtml(gift.id)}<br>${gift.diamondCount ? `Puan: ${gift.diamondCount}` : 'Puan bilgisi yok'}</div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function openGiftPicker(teamIndex) {
+            activeGiftTeamIndex = Number(teamIndex);
+            document.getElementById('gift-picker-modal').classList.add('open');
+            document.getElementById('gift-search').value = '';
+            renderGiftPickerList();
+            if (!giftCatalog.length) requestGiftCatalog(false);
+        }
+
+        function closeGiftPicker() {
+            document.getElementById('gift-picker-modal').classList.remove('open');
+            activeGiftTeamIndex = null;
+        }
+
+        function selectGiftForActiveTeam(gift) {
+            if (activeGiftTeamIndex === null || activeGiftTeamIndex < 0 || !teams[activeGiftTeamIndex]) {
+                closeGiftPicker();
+                return;
+            }
+
+            const duplicateIndex = teams.findIndex((team, idx) => idx !== activeGiftTeamIndex && String(team.selectedGiftId) === String(gift.id));
+            if (duplicateIndex !== -1) {
+                teams[duplicateIndex].selectedGiftId = '';
+                teams[duplicateIndex].selectedGiftName = '';
+                teams[duplicateIndex].selectedGiftImage = '';
+                teams[duplicateIndex].selectedGiftDiamondCount = 0;
+                showToast(`${teams[duplicateIndex].name} takımındaki aynı hediye otomatik temizlendi.`);
+            }
+
+            const team = teams[activeGiftTeamIndex];
+            team.selectedGiftId = String(gift.id);
+            team.selectedGiftName = gift.name || '';
+            team.selectedGiftImage = gift.image || '';
+            team.selectedGiftDiamondCount = Number(gift.diamondCount || 0) || 0;
+            renderGame();
+            renderTeamEditors();
+            debounceSave();
+            closeGiftPicker();
+            showToast(`${team.name} için “${gift.name}” seçildi.`);
+        }
+
+        function clearTeamGift(index) {
+            if (!teams[index]) return;
+            teams[index].selectedGiftId = '';
+            teams[index].selectedGiftName = '';
+            teams[index].selectedGiftImage = '';
+            teams[index].selectedGiftDiamondCount = 0;
+            renderGame();
+            renderTeamEditors();
+            debounceSave();
+        }
+
+        function updateTeamData(index, field, value) {
+            if (!teams[index]) return;
+            teams[index][field] = value;
+            renderGame();
+            debounceSave();
+        }
+
+        async function handleTeamFile(input, index, type) {
+            const file = input.files && input.files[0];
+            if (!file || !teams[index]) return;
+            const dataUrl = await fileToDataUrl(file);
+            const assetKey = `team:${index}:${type}`;
+            await idbSet(assetKey, dataUrl);
+            if (type === 'logo') {
+                teams[index].logo = dataUrl;
+                teams[index].logoAssetKey = assetKey;
+                teams[index].logoFileName = file.name || '';
+            } else {
+                teams[index].anthem = dataUrl;
+                teams[index].anthemAssetKey = assetKey;
+                teams[index].anthemFileName = file.name || '';
+            }
+            renderGame();
+            renderTeamEditors();
+            if (type === 'anthem') playLeaderAnthemIfNeeded(true, index);
+            debounceSave();
+            showToast(`${teams[index].name} için ${type === 'logo' ? 'logo' : 'marş'} kaydedildi.`);
+        }
+
+        function updateStyle(prop, val, labelId) {
+            styleState[prop] = val;
+            document.documentElement.style.setProperty(`--${prop}`, val);
+            document.getElementById(labelId).innerText = val;
+            debounceSave();
+        }
+
+        function toggleMenu() {
+            document.getElementById('settings-menu').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+
+        function showToast(message) {
+            const host = document.getElementById('toast-host');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            host.appendChild(toast);
+            setTimeout(() => toast.remove(), 2800);
+        }
+
+        function primeAudioPlayback() {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) {
+                    audioUnlocked = true;
+                    return;
+                }
+                if (!audioUnlockCtx) audioUnlockCtx = new AC();
+                if (audioUnlockCtx.state === 'suspended') {
+                    audioUnlockCtx.resume().catch(() => {});
+                }
+                const oscillator = audioUnlockCtx.createOscillator();
+                const gain = audioUnlockCtx.createGain();
+                gain.gain.value = 0.00001;
+                oscillator.connect(gain);
+                gain.connect(audioUnlockCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioUnlockCtx.currentTime + 0.02);
+                audioUnlocked = true;
+            } catch (err) {}
+        }
+
+        function getLeaderTeam() {
+            const topScore = Math.max(0, ...teams.map(team => Number(team?.score || 0) || 0));
+            if (topScore <= 0) return null;
+            const topTeams = teams.filter(team => (Number(team?.score || 0) || 0) === topScore);
+            return topTeams.length === 1 ? topTeams[0] : null;
+        }
+
+        function getAnthemTarget(scoredIndex = null) {
+            const topScore = Math.max(0, ...teams.map(team => Number(team?.score || 0) || 0));
+            if (topScore <= 0) return null;
+
+            if (scoredIndex !== null && teams[scoredIndex]) {
+                const scoredTeam = teams[scoredIndex];
+                const scoredTeamScore = Number(scoredTeam.score || 0) || 0;
+                if (scoredTeamScore === topScore) {
+                    return scoredTeam;
+                }
+            }
+
+            return getLeaderTeam();
+        }
+
+        function stopLeaderAnthem(resetLeader = false) {
+            try {
+                if (leaderAnthemAudio) {
+                    leaderAnthemAudio.pause();
+                    leaderAnthemAudio.currentTime = 0;
+                    leaderAnthemAudio.src = '';
+                }
+            } catch (err) {}
+            leaderAnthemAudio = null;
+            if (resetLeader) lastLeaderTeamId = null;
+        }
+
+        function syncAnthemControls() {
+            const vol = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+            anthemState.volume = vol;
+            const label = document.getElementById('anthem-volume-val');
+            const slider = document.getElementById('anthem-volume');
+            const mute = document.getElementById('anthem-mute');
+            if (slider) slider.value = String(Math.round(vol * 100));
+            if (label) label.textContent = `${Math.round(vol * 100)}%`;
+            if (mute) mute.checked = !!anthemState.mute;
+            if (leaderAnthemAudio) {
+                leaderAnthemAudio.muted = !!anthemState.mute;
+                leaderAnthemAudio.volume = vol;
+            }
+        }
+
+        function playLeaderAnthemIfNeeded(forceRestart = false, scoredIndex = null) {
+            const leader = getAnthemTarget(scoredIndex);
+            if (!leader || !leader.anthem) {
+                stopLeaderAnthem(true);
+                return;
+            }
+
+            const leaderId = Number(leader.id || 0) || 0;
+            const sameLeader = lastLeaderTeamId === leaderId;
+            if (sameLeader && leaderAnthemAudio && !forceRestart) {
+                syncAnthemControls();
+                if (leaderAnthemAudio.paused) {
+                    leaderAnthemAudio.play().catch(() => {});
+                }
+                return;
+            }
+
+            stopLeaderAnthem(false);
+            lastLeaderTeamId = leaderId;
+            primeAudioPlayback();
+
+            try {
+                const audio = new Audio(leader.anthem);
+                audio.loop = true;
+                audio.preload = 'auto';
+                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                audio.muted = !!anthemState.mute;
+                leaderAnthemAudio = audio;
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {
+                        showToast('Marş için ses oynatma izni gerekiyor. Ekrana bir kez tıklayıp tekrar deneyin.');
+                    });
+                }
+            } catch (err) {
+                console.error('Leader anthem play error:', err);
+            }
+        }
+
+        function givePoint(index, amount) {
+            if (!teams[index]) return;
+            const add = Number(amount || 0) || 0;
+            if (add <= 0) return;
+            teams[index].score += add;
+            const scoreView = document.getElementById(`score-view-${index}`);
+            const cardView = document.getElementById(`card-view-${index}`);
+            if (scoreView) scoreView.innerText = String(teams[index].score);
+            if (cardView) {
+                cardView.classList.add('pumping');
+                setTimeout(() => cardView.classList.remove('pumping'), 300);
+            }
+            playLeaderAnthemIfNeeded(false, index);
+            debounceSave();
+        }
+
+        function norm(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        function updateConnectionStatus(type, text) {
+            const el = document.getElementById('connection-log');
+            el.className = '';
+            el.id = 'connection-log';
+            el.textContent = text;
+            el.classList.add(type);
+        }
+
+        function connectTikTok() {
+            primeAudioPlayback();
+            const user = document.getElementById('tiktok-username').value.trim().replace(/^@+/, '');
+            const btn = document.getElementById('btn-connect');
+            if (!user) {
+                showToast('Önce TikTok kullanıcı adını girin.');
+                return;
+            }
+
+            if (isConnected && socket) {
+                manualDisconnect = true;
+                connectRequested = false;
+                debounceSave();
+                try { socket.emit('disconnectTikTok'); } catch (err) {}
+                try { socket.disconnect(); } catch (err) {}
+                stopLeaderAnthem(true);
+                socket = null;
+                isConnected = false;
+                btn.textContent = 'BAĞLAN';
+                btn.className = 'btn btn-primary flex-1';
+                updateConnectionStatus('status-none', 'Bağlantı Yok');
+                return;
+            }
+
+            manualDisconnect = false;
+            connectRequested = true;
+            debounceSave();
+            updateConnectionStatus('status-pending', 'Bağlanıyor...');
+            btn.disabled = true;
+
+            socket = io();
+
+            socket.on('connect', () => {
+                isConnected = true;
+                btn.disabled = false;
+                btn.textContent = 'BAĞLANTIYI KES';
+                btn.className = 'btn btn-danger flex-1';
+                updateConnectionStatus('status-success', 'Bağlandı');
+                socket.emit('setTargetUser', user);
+                socket.emit('requestGiftCatalog', { force: false });
+            });
+
+            socket.on('disconnect', () => {
+                isConnected = false;
+                btn.disabled = false;
+                btn.textContent = 'BAĞLAN';
+                btn.className = 'btn btn-primary flex-1';
+                if (manualDisconnect || !connectRequested) {
+                    updateConnectionStatus('status-none', 'Bağlantı Yok');
+                } else {
+                    updateConnectionStatus('status-error', 'Bağlantı Koptu');
+                }
+                stopLeaderAnthem(true);
+                manualDisconnect = false;
+            });
+
+            socket.on('system_msg', (msg) => {
+                if (msg) showToast(msg);
+            });
+
+            socket.on('connection_state', (data) => {
+                if (!data) return;
+                if (data.connected) {
+                    updateConnectionStatus('status-success', 'Bağlandı');
+                } else if (data.error) {
+                    updateConnectionStatus('status-error', 'Hata');
+                    showToast(data.error);
+                } else {
+                    updateConnectionStatus('status-none', 'Bağlantı Yok');
+                    stopLeaderAnthem(true);
+                }
+            });
+
+            socket.on('gift_catalog', (catalog) => {
+                if (!Array.isArray(catalog)) return;
+                giftCatalog = catalog.map(item => ({
+                    id: String(item.id || ''),
+                    name: item.name || `Gift ${item.id}`,
+                    image: item.image || '',
+                    diamondCount: Number(item.diamondCount || 0) || 0
+                })).filter(item => item.id);
+                renderCatalogSummary();
+                renderGiftPickerList();
+                debounceSave();
+            });
+
+            socket.on('gift_catalog_error', (message) => {
+                if (message) showToast(message);
+            });
+
+
+            socket.on('gift', (data) => {
+                if (!data || !data.giftId) return;
+                const matches = teams
+                    .map((team, index) => ({ team, index }))
+                    .filter(entry => String(entry.team.selectedGiftId) === String(data.giftId));
+                if (!matches.length) return;
+
+                const totalPoints = Number(data.totalDiamondCount || 0) || (Number(data.diamondCount || 0) * Number(data.repeatCount || 1)) || 0;
+                const fallback = Number(matches[0].team.selectedGiftDiamondCount || 1) || 1;
+                const score = totalPoints > 0 ? totalPoints : (fallback * (Number(data.repeatCount || 1) || 1));
+                matches.forEach(entry => givePoint(entry.index, score));
+            });
+        }
+
+        function requestGiftCatalog(force = false) {
+            if (socket && isConnected) {
+                socket.emit('requestGiftCatalog', { force });
+                return;
+            }
+            renderCatalogSummary();
+            if (!giftCatalog.length) showToast('Önce canlı yayına bağlanın.');
+        }
+
+        function populateTeamCountSelect() {
+            const sel = document.getElementById('team-count-select');
+            if (!sel) return;
+            sel.innerHTML = '';
+            for (let i = 4; i <= 18; i++) {
+                const opt = document.createElement('option');
+                opt.value = String(i);
+                opt.textContent = `${i} Takım`;
+                sel.appendChild(opt);
+            }
+            sel.value = String(teamCount);
+            sel.onchange = () => applyTeamCount(sel.value);
+        }
+
+        function applyTeamCount(value) {
+            const next = clampTeamCount(value);
+            const byId = new Map(teams.map(team => [team.id, team]));
+            const newTeams = [];
+            for (let i = 1; i <= next; i++) {
+                newTeams.push(normalizeTeam(byId.get(i), i - 1));
+            }
+            teamCount = next;
+            teams = newTeams;
+            applyGridCols(teamCount);
+            renderGame();
+            renderTeamEditors();
+            populateTeamCountSelect();
+            debounceSave();
+        }
+
+        function toggleTechPanel() {
+            const panel = document.getElementById('tech-panel');
+            const visible = panel.style.display !== 'none';
+            panel.style.display = visible ? 'none' : 'block';
+            debounceSave();
+        }
+
+        function closeTechPanel() {
+            document.getElementById('tech-panel').style.display = 'none';
+            debounceSave();
+        }
+
+        function applyReminderSize(w, h) {
+            const width = Math.max(320, Math.min(980, Number(w) || 860));
+            let height = Number(h);
+            if (Number.isNaN(height)) height = 0;
+            height = Math.max(0, Math.min(520, height));
+            document.documentElement.style.setProperty('--rem-card-w', width + 'px');
+            document.documentElement.style.setProperty('--rem-card-h', height === 0 ? 'auto' : height + 'px');
+            document.getElementById('rem-w-val').textContent = String(width);
+            document.getElementById('rem-h-val').textContent = String(height);
+        }
+
+        function syncReminderLabels() {
+            document.getElementById('reminder-interval-val').textContent = String(document.getElementById('reminder-interval').value);
+            document.getElementById('reminder-duration-val').textContent = String(document.getElementById('reminder-duration').value);
+        }
+
+        function getReminderConfig() {
+            reminderState.enabled = !!document.getElementById('reminder-enabled').checked;
+            reminderState.intervalSec = Math.max(30, Math.min(300, Number(document.getElementById('reminder-interval').value || 60)));
+            reminderState.showSec = Math.max(1, Math.min(10, Number(document.getElementById('reminder-duration').value || 4)));
+            reminderState.mute = !!document.getElementById('reminder-mute').checked;
+            reminderState.text = String(document.getElementById('reminder-text').value || '').trim() || DEFAULT_REMINDER_TEXT;
+            reminderState.sfxAssetKey = reminderSfxAssetKey;
+            return { ...reminderState };
+        }
+
+        function playBeep() {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                const ctx = new AC();
+                const oscillator = ctx.createOscillator();
+                const gain = ctx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 880;
+                gain.gain.value = 0.06;
+                oscillator.connect(gain);
+                gain.connect(ctx.destination);
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                    ctx.close();
+                }, 140);
+            } catch (err) {}
+        }
+
+        function playReminderSfx() {
+            try {
+                if (reminderSfxUrl) {
+                    if (!reminderSfxAudio) {
+                        reminderSfxAudio = new Audio(reminderSfxUrl);
+                        reminderSfxAudio.volume = 0.9;
+                    }
+                    reminderSfxAudio.currentTime = 0;
+                    reminderSfxAudio.play().catch(() => {});
+                    return;
+                }
+            } catch (err) {}
+            playBeep();
+        }
+
+        function speakTR(text) {
+            try {
+                if (!('speechSynthesis' in window)) return;
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'tr-TR';
+                utterance.rate = 1.03;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {}
+        }
+
+        function showReminderCard(text, showSec) {
+            return new Promise(resolve => {
+                const host = document.getElementById('systemcard-host');
+                host.innerHTML = '';
+                const card = document.createElement('div');
+                card.className = 'reminder-card';
+                card.innerHTML = `
+                    <div class="title">BİLGİLENDİRME</div>
+                    <div class="msg">${escapeHtml(text)}</div>
+                    <div class="sub">Desteklemek istediğin takımın atanmış hediyesini gönder</div>
+                `;
+                host.appendChild(card);
+                requestAnimationFrame(() => card.classList.add('show'));
+                setTimeout(() => {
+                    card.classList.remove('show');
+                    setTimeout(() => {
+                        host.innerHTML = '';
+                        resolve();
+                    }, 250);
+                }, showSec * 1000);
+            });
+        }
+
+        async function fireReminder() {
+            const cfg = getReminderConfig();
+            if (!cfg.enabled || reminderShowing) return;
+            reminderShowing = true;
+            showReminderCard(cfg.text, cfg.showSec).then(() => { reminderShowing = false; });
+            if (!cfg.mute) {
+                playReminderSfx();
+                speakTR(cfg.text);
+            }
+        }
+
+        function restartReminder() {
+            if (reminderTimer) clearInterval(reminderTimer);
+            const cfg = getReminderConfig();
+            if (cfg.enabled) {
+                reminderTimer = setInterval(() => fireReminder(), cfg.intervalSec * 1000);
+            }
+            debounceSave();
+        }
+
+        async function handleReminderSfxChange(input) {
+            const file = input.files && input.files[0];
+            if (!file) {
+                reminderSfxUrl = '';
+                reminderSfxAudio = null;
+                document.getElementById('reminder-sfx-val').textContent = 'Yok';
+                debounceSave();
+                return;
+            }
+            const dataUrl = await fileToDataUrl(file);
+            await idbSet(reminderSfxAssetKey, dataUrl);
+            reminderSfxUrl = dataUrl;
+            reminderSfxAudio = null;
+            document.getElementById('reminder-sfx-val').textContent = 'Yüklü';
+            debounceSave();
+        }
+
+        function bindReminderUi() {
+            const widthInput = document.getElementById('rem-w');
+            const heightInput = document.getElementById('rem-h');
+            const onReminderSize = () => {
+                localStorage.setItem('ui_rem_w', widthInput.value);
+                localStorage.setItem('ui_rem_h', heightInput.value);
+                applyReminderSize(widthInput.value, heightInput.value);
+            };
+            widthInput.addEventListener('input', onReminderSize);
+            widthInput.addEventListener('change', onReminderSize);
+            heightInput.addEventListener('input', onReminderSize);
+            heightInput.addEventListener('change', onReminderSize);
+
+            ['reminder-interval', 'reminder-duration'].forEach(id => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', () => { syncReminderLabels(); restartReminder(); });
+                el.addEventListener('change', () => { syncReminderLabels(); restartReminder(); });
+            });
+            document.getElementById('reminder-enabled').addEventListener('change', restartReminder);
+            document.getElementById('reminder-mute').addEventListener('change', debounceSave);
+            document.getElementById('reminder-text').addEventListener('input', debounceSave);
+            document.getElementById('reminder-text').addEventListener('change', restartReminder);
+            document.getElementById('reminder-sfx').addEventListener('change', (event) => handleReminderSfxChange(event.target));
+
+            const anthemVolume = document.getElementById('anthem-volume');
+            const anthemMute = document.getElementById('anthem-mute');
+            anthemVolume.addEventListener('input', () => {
+                anthemState.volume = Math.max(0, Math.min(1, Number(anthemVolume.value || 0) / 100));
+                syncAnthemControls();
+                debounceSave();
+            });
+            anthemVolume.addEventListener('change', () => {
+                anthemState.volume = Math.max(0, Math.min(1, Number(anthemVolume.value || 0) / 100));
+                syncAnthemControls();
+                playLeaderAnthemIfNeeded(true);
+                debounceSave();
+            });
+            anthemMute.addEventListener('change', () => {
+                anthemState.mute = !!anthemMute.checked;
+                syncAnthemControls();
+                playLeaderAnthemIfNeeded(true);
+                debounceSave();
+            });
+
+            ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(eventName => {
+                window.addEventListener(eventName, primeAudioPlayback, { passive: true, once: true });
+            });
+        }
+
+        async function init() {
+            loadState();
+            await hydrateAssets();
+            renderGame();
+            renderTeamEditors();
+            populateTeamCountSelect();
+            applySavedUi();
+            renderCatalogSummary();
+            renderGiftPickerList();
+            bindReminderUi();
+            restartReminder();
+            setTimeout(() => fireReminder(), 8000);
+
+            const saved = getStoredStateObject();
+            if (saved.techPanelOpen) document.getElementById('tech-panel').style.display = 'block';
+            document.getElementById('tiktok-username').value = '';
+            updateConnectionStatus('status-none', 'Bağlantı Yok');
+            syncAnthemControls();
+            playLeaderAnthemIfNeeded();
+        }
+
+        window.addEventListener('beforeunload', saveStateNow);
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                if (document.getElementById('gift-picker-modal').classList.contains('open')) {
+                    closeGiftPicker();
+                    return;
+                }
+                if (document.getElementById('settings-menu').classList.contains('open')) {
+                    toggleMenu();
+                }
+            }
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>

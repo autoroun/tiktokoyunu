@@ -1,0 +1,303 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const { WebcastPushConnection } = require('tiktok-live-connector');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+app.use(express.static(__dirname));
+
+let tiktokConnection = null;
+let currentTargetUser = '';
+let currentCatalog = [];
+const giftSeen = new Map();
+
+function pruneGiftSeen(now = Date.now()) {
+  for (const [key, ts] of giftSeen.entries()) {
+    if (now - ts > 15000) giftSeen.delete(key);
+  }
+}
+
+function giftKey(data) {
+  const u = data.uniqueId || data.userId || data.user_id || data.nickname || 'u';
+  const gid = data.giftId || data.gift_id || data.giftID || data.giftName || 'g';
+  const end = (data.repeatEnd === true || data.repeat_end === true) ? 'end' : 'mid';
+  const rc = data.repeatCount || data.repeat_count || 1;
+  return `${u}|${gid}|${end}|${rc}`;
+}
+
+function pickFirstImage(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.find(Boolean) || null;
+  if (typeof value === 'object') {
+    return (
+      pickFirstImage(value.url_list) ||
+      pickFirstImage(value.urlList) ||
+      pickFirstImage(value.urls) ||
+      pickFirstImage(value.image_list) ||
+      value.uri ||
+      value.url ||
+      null
+    );
+  }
+  return null;
+}
+
+function looksLikeGift(item) {
+  if (!item || typeof item !== 'object') return false;
+  const id = item.id ?? item.giftId ?? item.gift_id;
+  const name = item.name ?? item.giftName ?? item.describe ?? item.description;
+  const diamonds = item.diamondCount ?? item.diamond_count ?? item.diamondCost ?? item.diamond_cost ?? item.price;
+  return id !== undefined && (name !== undefined || diamonds !== undefined);
+}
+
+function flattenGiftNodes(value, out = []) {
+  if (!value) return out;
+
+  if (Array.isArray(value)) {
+    for (const item of value) flattenGiftNodes(item, out);
+    return out;
+  }
+
+  if (typeof value !== 'object') return out;
+
+  if (looksLikeGift(value)) out.push(value);
+
+  const candidateKeys = [
+    'gifts',
+    'giftList',
+    'gift_list',
+    'items',
+    'data',
+    'availableGifts',
+    'gift_info',
+    'giftInfo',
+    'roomGiftList',
+    'room_gift_list'
+  ];
+
+  for (const key of candidateKeys) {
+    if (value[key]) flattenGiftNodes(value[key], out);
+  }
+
+  return out;
+}
+
+function normalizeGiftCatalog(raw) {
+  const flat = flattenGiftNodes(raw, []);
+  const unique = new Map();
+
+  for (const item of flat) {
+    const id = String(item.id ?? item.giftId ?? item.gift_id ?? '').trim();
+    if (!id) continue;
+
+    const normalized = {
+      id,
+      name: String(item.name ?? item.giftName ?? item.describe ?? item.description ?? `Gift ${id}`).trim(),
+      diamondCount: Number(item.diamondCount ?? item.diamond_count ?? item.diamondCost ?? item.diamond_cost ?? item.price ?? 0) || 0,
+      image: pickFirstImage(item.image || item.giftImage || item.icon || item.iconImage || item.previewImage),
+      type: item.type ?? item.giftType ?? null
+    };
+
+    if (!unique.has(normalized.id)) {
+      unique.set(normalized.id, normalized);
+      continue;
+    }
+
+    const prev = unique.get(normalized.id);
+    if ((!prev.image && normalized.image) || (!prev.diamondCount && normalized.diamondCount)) {
+      unique.set(normalized.id, { ...prev, ...normalized });
+    }
+  }
+
+  return Array.from(unique.values()).sort((a, b) => {
+    if (b.diamondCount !== a.diamondCount) return b.diamondCount - a.diamondCount;
+    return a.name.localeCompare(b.name, 'tr');
+  });
+}
+
+async function refreshGiftCatalog(force = false) {
+  if (!tiktokConnection) return currentCatalog;
+  if (!force && currentCatalog.length > 0) return currentCatalog;
+
+  try {
+    let raw = [];
+
+    if (typeof tiktokConnection.fetchAvailableGifts === 'function') {
+      raw = await tiktokConnection.fetchAvailableGifts();
+    } else if (Array.isArray(tiktokConnection.availableGifts)) {
+      raw = tiktokConnection.availableGifts;
+    }
+
+    const normalized = normalizeGiftCatalog(raw);
+    if (normalized.length > 0) currentCatalog = normalized;
+
+    io.emit('gift_catalog', currentCatalog);
+    return currentCatalog;
+  } catch (err) {
+    console.error('[CATALOG] Hediye katalogu alinamadi:', err?.message || err);
+    io.emit('gift_catalog_error', err?.message || 'Hediye katalogu alinamadi.');
+    return currentCatalog;
+  }
+}
+
+function emitConnectionState(extra = {}) {
+  io.emit('connection_state', {
+    targetUser: currentTargetUser,
+    connected: Boolean(tiktokConnection),
+    catalogCount: currentCatalog.length,
+    ...extra
+  });
+}
+
+function broadcastConnectionInfo(socket) {
+  socket.emit('connection_state', {
+    targetUser: currentTargetUser,
+    connected: Boolean(tiktokConnection),
+    catalogCount: currentCatalog.length
+  });
+
+  if (currentCatalog.length > 0) {
+    socket.emit('gift_catalog', currentCatalog);
+  }
+}
+
+function disconnectTikTokConnection(reason = 'TikTok yayini ile baglanti kesildi.') {
+  if (tiktokConnection) {
+    try {
+      tiktokConnection.disconnect();
+    } catch (err) {
+      console.error('[DISCONNECT]', err?.message || err);
+    }
+  }
+
+  tiktokConnection = null;
+  giftSeen.clear();
+  emitConnectionState();
+  io.emit('system_msg', reason);
+}
+
+function bindTikTokEvents(connection) {
+  connection.on('gift', (data) => {
+    const hasRepeatEnd = (typeof data.repeatEnd === 'boolean') || (typeof data.repeat_end === 'boolean');
+    const repeatEnd = (data.repeatEnd === true) || (data.repeat_end === true);
+    if (hasRepeatEnd && !repeatEnd) return;
+
+    const repeatCount = Number(data.repeatCount || data.repeat_count || 1) || 1;
+    const diamondCount = Number(data.diamondCount ?? data.diamond_count ?? 0) || 0;
+
+    const payload = {
+      nickname: data.nickname,
+      uniqueId: data.uniqueId || data.userId || data.user_id || data.nickname,
+      profilePictureUrl: data.profilePictureUrl,
+      giftName: data.giftName,
+      giftId: String(data.giftId ?? data.gift_id ?? ''),
+      diamondCount,
+      repeatCount,
+      repeatEnd,
+      totalDiamondCount: diamondCount * repeatCount
+    };
+
+    const now = Date.now();
+    pruneGiftSeen(now);
+    const key = giftKey(payload);
+    const prev = giftSeen.get(key);
+    if (prev && (now - prev) < 2500) return;
+    giftSeen.set(key, now);
+
+    io.emit('gift', payload);
+  });
+
+  connection.on('streamEnd', () => {
+    disconnectTikTokConnection('Canli yayin sona erdi.');
+  });
+
+  connection.on('disconnected', () => {
+    tiktokConnection = null;
+    emitConnectionState();
+    io.emit('system_msg', 'TikTok yayini ile baglanti kesildi.');
+    console.log('[TIKTOK] disconnected');
+  });
+}
+
+io.on('connection', (socket) => {
+  console.log('Sunucu: Bir istemci baglandi. ID:', socket.id);
+  broadcastConnectionInfo(socket);
+
+  socket.on('requestGiftCatalog', async (payload = {}) => {
+    const force = Boolean(payload && payload.force);
+    const catalog = await refreshGiftCatalog(force);
+    socket.emit('gift_catalog', catalog);
+  });
+
+  socket.on('disconnectTikTok', () => {
+    disconnectTikTokConnection('TikTok baglantisi kapatildi.');
+  });
+
+  socket.on('setTargetUser', async (username) => {
+    const cleanUsername = String(username || '').trim().replace(/^@+/, '');
+    if (!cleanUsername) return;
+
+    if (tiktokConnection) {
+      disconnectTikTokConnection('Eski TikTok baglantisi kapatildi.');
+    }
+
+    currentCatalog = [];
+    currentTargetUser = cleanUsername;
+    giftSeen.clear();
+
+    console.log(`TikTok yayinina baglaniliyor: ${cleanUsername}`);
+    const connection = new WebcastPushConnection(cleanUsername, {
+      enableExtendedGiftInfo: true,
+      fetchRoomInfoOnConnect: true
+    });
+    tiktokConnection = connection;
+    emitConnectionState();
+    bindTikTokEvents(connection);
+
+    connection.connect().then(async (state) => {
+      if (tiktokConnection !== connection) return;
+      console.log(`Baglanti basarili! Room ID: ${state.roomId}`);
+      io.emit('system_msg', `${cleanUsername} yayinina basariyla baglanildi.`);
+      emitConnectionState({ roomId: state.roomId, connected: true });
+      await refreshGiftCatalog(true);
+    }).catch((err) => {
+      if (tiktokConnection === connection) {
+        tiktokConnection = null;
+      }
+      console.error('Baglanti Hatasi:', err);
+      socket.emit('system_msg', `Hata: ${err.message}. Lutfen kullanici adini kontrol edin.`);
+      socket.emit('connection_state', {
+        targetUser: currentTargetUser,
+        connected: false,
+        error: err.message,
+        catalogCount: currentCatalog.length
+      });
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Istemci ayrildi.');
+  });
+});
+
+app.get('/api/gifts', (_req, res) => {
+  res.json({
+    targetUser: currentTargetUser,
+    count: currentCatalog.length,
+    gifts: currentCatalog
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log('\n=========================================');
+  console.log(`  SUNUCU AKTIF: http://localhost:${PORT}`);
+  console.log('  Kapatmak icin Terminalde CTRL+C basin.');
+  console.log('=========================================\n');
+});
