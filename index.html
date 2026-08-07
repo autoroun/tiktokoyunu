@@ -3670,7 +3670,10 @@
             showToast('Arka plan müziği kaldırıldı.');
         }
 
+        let bgMusicSuspendedByAnthem = false;
+
         function playGlobalBgMusic() {
+            bgMusicSuspendedByAnthem = false;
             if (!bgMusicState.enabled || bgMusicState.mute || !globalBgMusicDataUrl) return;
             if (leaderAnthemAudio && !leaderAnthemAudio.paused) return;
             primeAudioPlayback();
@@ -3680,11 +3683,19 @@
             }
             globalBgMusicAudio.volume = Math.max(0, Math.min(1, Number(bgMusicState.volume ?? 50) / 100));
             globalBgMusicAudio.play().catch(() => {});
+
+            if (ytPlayer && typeof ytPlayer.unMute === 'function' && !bgState.ytMute) {
+                try { ytPlayer.unMute(); } catch(e) {}
+            }
         }
 
         function pauseGlobalBgMusic() {
-            if (globalBgMusicAudio && !globalBgMusicAudio.paused) {
+            bgMusicSuspendedByAnthem = true;
+            if (globalBgMusicAudio) {
                 try { globalBgMusicAudio.pause(); } catch(e) {}
+            }
+            if (ytPlayer && typeof ytPlayer.mute === 'function' && !bgState.ytMute) {
+                try { ytPlayer.mute(); } catch(e) {}
             }
         }
 
@@ -3834,6 +3845,21 @@
         function playTeamAnthem(index, forceRestart = true) {
             if (!teams[index]) return;
             const team = teams[index];
+
+            pauseGlobalBgMusic();
+
+            if (anthemResumeTimer) {
+                clearTimeout(anthemResumeTimer);
+                anthemResumeTimer = null;
+            }
+
+            const delayMs = (Number(bgMusicState.resumeDelaySec) || 60) * 1000;
+            if (delayMs > 0) {
+                anthemResumeTimer = setTimeout(() => {
+                    stopLeaderAnthem(false);
+                    playGlobalBgMusic();
+                }, delayMs);
+            }
 
             if (!team.anthem) {
                 const leader = getLeaderTeam();
