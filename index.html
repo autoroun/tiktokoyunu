@@ -1399,14 +1399,6 @@
                     <button onclick="clearBgMusic()" class="btn btn-danger text-[9px] w-full mt-1">MÜZİĞİ KALDIR</button>
                 </div>
 
-                <div class="flex items-center gap-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/30 my-1">
-                    <input id="continuous-leader-anthem" type="checkbox" onchange="updateContinuousLeaderSetting(this.checked)">
-                    <label for="continuous-leader-anthem" class="text-[9.5px] font-black text-yellow-300 cursor-pointer leading-tight" style="margin-top:0;">
-                        👑 1. (Lider) Takımın Marşı Kesintisiz Sürekli Çalsın<br>
-                        <span class="text-[8.5px] text-white/70 font-normal block mt-0.5">Açıldığında genel arka plan müziği durur. Lider değiştiğinde otomatik yeni 1. takımın marşı başlar.</span>
-                    </label>
-                </div>
-
                 <div class="flex items-center gap-2">
                     <input id="bg-music-enabled" type="checkbox" checked onchange="updateBgMusicParam('enabled', this.checked)">
                     <label for="bg-music-enabled" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Arka Plan Müziğini Etkinleştir</label>
@@ -1427,6 +1419,14 @@
                     </div>
                     <input id="bg-music-delay-slider" type="range" min="5" max="180" step="5" value="60" oninput="updateBgMusicParam('resumeDelaySec', this.value)">
                     <div class="mini-help mt-0.5">Puan geldiğinde marş başlar. Belirlediğiniz süre (ör: 60s) dolduğunda marş durur ve arka plan müziği tekrar devreye girer.</div>
+                </div>
+
+                <div style="padding:10px; background:rgba(0,255,150,0.06); border:1px solid rgba(0,255,150,0.25); border-radius:10px;">
+                    <label class="flex items-center gap-2 cursor-pointer" style="margin-top:0;">
+                        <input id="leader-anthem-continuous" type="checkbox" onchange="updateLeaderAnthemContinuous(this.checked)">
+                        <span class="text-[10px] font-bold text-green-300">🏆 LİDER TAKI MARŞI SÜREKLİ ÇALSIN MODU</span>
+                    </label>
+                    <div class="mini-help mt-1">Bu mod açıkken 1. sıradaki takımın marşı sürekli döngüsel olarak çalınır. Arka plan müziği devre dışı kalır. Liderlik değişirse yeni liderin marşı otomatik başlar.</div>
                 </div>
             </div>
         </div>
@@ -1839,6 +1839,7 @@
                 if (settings.headerTitleText) headerTitleText = settings.headerTitleText;
                 if (typeof settings.headerAnimEnabled === 'boolean') headerAnimEnabled = settings.headerAnimEnabled;
                 if (settings.headerStyleState) Object.assign(headerStyleState, settings.headerStyleState);
+                if (typeof settings.leaderAnthemContinuous === 'boolean') leaderAnthemContinuous = settings.leaderAnthemContinuous;
                 if (settings.topLikers) {
                     topLikers = { ...settings.topLikers };
                     renderTopLikers();
@@ -2173,6 +2174,8 @@
             volume: 0.9,
             mute: false
         };
+        let leaderAnthemContinuous = false;
+        let leaderAnthemContinuousTimer = null;
 
         const bgState = {
             type: 'none',
@@ -2367,6 +2370,7 @@
                     styleState: { ...styleState },
                     reminderState: { ...reminderState },
                     anthemState: { ...anthemState },
+                    leaderAnthemContinuous,
                     bgState: { ...bgState },
                     giftSfxState: { ...giftSfxState },
                     bgMusicState: { ...bgMusicState },
@@ -2532,6 +2536,7 @@
                 Object.assign(styleState, state.styleState || {});
                 Object.assign(reminderState, state.reminderState || {});
                 Object.assign(anthemState, state.anthemState || {});
+                if (typeof state.leaderAnthemContinuous === 'boolean') leaderAnthemContinuous = state.leaderAnthemContinuous;
                 Object.assign(bgState, state.bgState || {});
                 Object.assign(giftSfxState, state.giftSfxState || {});
                 Object.assign(bgMusicState, state.bgMusicState || {});
@@ -2596,8 +2601,8 @@
             document.getElementById('reminder-text').value = reminderState.text || DEFAULT_REMINDER_TEXT;
             document.getElementById('anthem-volume').value = String(Math.round((Number(anthemState.volume || 0) || 0) * 100));
             document.getElementById('anthem-mute').checked = Boolean(anthemState.mute);
-            const continuousLeaderCb = document.getElementById('continuous-leader-anthem');
-            if (continuousLeaderCb) continuousLeaderCb.checked = Boolean(anthemState.continuousLeaderAnthem);
+            const lacEl = document.getElementById('leader-anthem-continuous');
+            if (lacEl) lacEl.checked = leaderAnthemContinuous;
             syncReminderLabels();
             syncAnthemControls();
             syncBgControls();
@@ -3555,89 +3560,9 @@
                 oscillator.stop(audioUnlockCtx.currentTime + 0.02);
                 audioUnlocked = true;
                 
-                // Müzik çaları başlat
-                if (anthemState.continuousLeaderAnthem) {
-                    updateContinuousLeaderAnthem();
-                } else {
-                    playGlobalBgMusic();
-                }
+                // Arka plan müziğini tetikle
+                playGlobalBgMusic();
             } catch (err) {}
-        }
-
-        function getTargetLeaderForAnthem() {
-            const topScore = Math.max(0, ...teams.map(team => Number(team?.score || 0) || 0));
-            if (topScore > 0) {
-                const topTeams = teams.filter(team => (Number(team?.score || 0) || 0) === topScore);
-                if (topTeams.length === 1) return topTeams[0];
-            }
-            const sorted = [...teams].sort((a, b) => (Number(b.score || 0) || 0) - (Number(a.score || 0) || 0));
-            return sorted[0] || teams[0] || null;
-        }
-
-        function updateContinuousLeaderAnthem() {
-            if (!anthemState.continuousLeaderAnthem) return;
-
-            if (globalBgMusicAudio) {
-                try { globalBgMusicAudio.pause(); } catch(e) {}
-            }
-            if (anthemResumeTimer) {
-                clearTimeout(anthemResumeTimer);
-                anthemResumeTimer = null;
-            }
-
-            const leader = getTargetLeaderForAnthem();
-            if (!leader || !leader.anthem) {
-                if (leaderAnthemAudio && lastLeaderTeamId !== null) {
-                    try { leaderAnthemAudio.pause(); } catch(e) {}
-                }
-                return;
-            }
-
-            const leaderId = Number(leader.id || 0) || 0;
-            if (lastLeaderTeamId === leaderId && leaderAnthemAudio && !leaderAnthemAudio.paused) {
-                leaderAnthemAudio.loop = true;
-                return;
-            }
-
-            try {
-                if (leaderAnthemAudio) {
-                    leaderAnthemAudio.pause();
-                    leaderAnthemAudio.currentTime = 0;
-                    leaderAnthemAudio.src = '';
-                }
-            } catch (e) {}
-
-            lastLeaderTeamId = leaderId;
-            try {
-                const audio = new Audio(leader.anthem);
-                audio.loop = true;
-                audio.preload = 'auto';
-                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
-                audio.muted = !!anthemState.mute;
-                leaderAnthemAudio = audio;
-                const p = audio.play();
-                if (p && typeof p.catch === 'function') {
-                    p.catch(err => console.warn('[CONTINUOUS ANTHEM] Play waiting for click:', err));
-                }
-            } catch (err) {
-                console.error('[CONTINUOUS ANTHEM] Error:', err);
-            }
-        }
-
-        function updateContinuousLeaderSetting(enabled) {
-            anthemState.continuousLeaderAnthem = Boolean(enabled);
-            syncBgMusicControls();
-            if (anthemState.continuousLeaderAnthem) {
-                if (globalBgMusicAudio) {
-                    try { globalBgMusicAudio.pause(); } catch(e) {}
-                }
-                updateContinuousLeaderAnthem();
-                showToast('👑 1. Takımın sürekli marş çalması aktif edildi. Arka plan müziği durduruldu.');
-            } else {
-                stopLeaderAnthem(true, true);
-                showToast('1. Takımın sürekli marş çalması kapatıldı.');
-            }
-            debounceSave();
         }
 
         function getLeaderTeam() {
@@ -3672,7 +3597,7 @@
             } catch (err) {}
             leaderAnthemAudio = null;
             if (resetLeader) lastLeaderTeamId = null;
-            if (resumeBg && !anthemState.continuousLeaderAnthem) {
+            if (resumeBg) {
                 bgMusicSuspendedByAnthem = false;
                 playGlobalBgMusic();
             }
@@ -3787,6 +3712,10 @@
         }
 
         function playLeaderAnthemIfNeeded(forceRestart = false, scoredIndex = null) {
+            if (leaderAnthemContinuous) {
+                checkAndUpdateLeaderAnthemContinuous(forceRestart);
+                return;
+            }
             const leader = getAnthemTarget(scoredIndex);
             if (!leader || !leader.anthem) {
                 stopLeaderAnthem(true);
@@ -3824,6 +3753,68 @@
             } catch (err) {
                 console.error('Leader anthem play error:', err);
             }
+        }
+
+        function checkAndUpdateLeaderAnthemContinuous(forceRestart = false) {
+            const leader = getLeaderTeam();
+            if (!leader || !leader.anthem) {
+                if (leaderAnthemAudio) stopLeaderAnthem(false, false);
+                return;
+            }
+
+            const leaderId = Number(leader.id || 0) || 0;
+            const sameLeader = lastLeaderTeamId === leaderId;
+
+            if (sameLeader && leaderAnthemAudio && !forceRestart) {
+                if (leaderAnthemAudio.paused) {
+                    leaderAnthemAudio.play().catch(() => {});
+                }
+                return;
+            }
+
+            stopLeaderAnthem(false, false);
+            lastLeaderTeamId = leaderId;
+            primeAudioPlayback();
+
+            try {
+                const audio = new Audio(leader.anthem);
+                audio.loop = true;
+                audio.preload = 'auto';
+                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                audio.muted = !!anthemState.mute;
+                leaderAnthemAudio = audio;
+                audio.play().catch(() => {});
+            } catch (err) {
+                console.error('[CONTINUOUS ANTHEM] Play error:', err);
+            }
+        }
+
+        function updateLeaderAnthemContinuous(enabled) {
+            leaderAnthemContinuous = Boolean(enabled);
+            if (leaderAnthemContinuousTimer) {
+                clearInterval(leaderAnthemContinuousTimer);
+                leaderAnthemContinuousTimer = null;
+            }
+            if (leaderAnthemContinuous) {
+                stopGlobalBgMusic();
+                if (anthemResumeTimer) { clearTimeout(anthemResumeTimer); anthemResumeTimer = null; }
+                checkAndUpdateLeaderAnthemContinuous(true);
+                leaderAnthemContinuousTimer = setInterval(() => {
+                    if (!leaderAnthemContinuous) return;
+                    checkAndUpdateLeaderAnthemContinuous(false);
+                }, 3000);
+            } else {
+                stopLeaderAnthem(true, true);
+            }
+            saveStateNow();
+            debounceSave();
+        }
+
+        function stopGlobalBgMusic() {
+            if (globalBgMusicAudio) {
+                try { globalBgMusicAudio.pause(); globalBgMusicAudio.currentTime = 0; } catch(e) {}
+            }
+            bgMusicSuspendedByAnthem = false;
         }
 
         // ── DİNAMİK ŞİMŞEK & ELEKTRİK MOKAP MOTORU ──────────────────────
@@ -4051,9 +4042,6 @@
             if (infoEl) {
                 infoEl.textContent = bgMusicState.fileName ? `Yüklü: ${bgMusicState.fileName}` : (globalBgMusicDataUrl ? 'Müzik Yüklü' : 'Müzik yüklü değil');
             }
-
-            const continuousLeaderCb = document.getElementById('continuous-leader-anthem');
-            if (continuousLeaderCb) continuousLeaderCb.checked = Boolean(anthemState.continuousLeaderAnthem);
         }
 
         function updateBgMusicParam(key, val) {
@@ -4107,7 +4095,6 @@
         let bgMusicSuspendedByAnthem = false;
 
         function playGlobalBgMusic() {
-            if (anthemState.continuousLeaderAnthem) return;
             if (bgMusicSuspendedByAnthem) return;
             if (leaderAnthemAudio && !leaderAnthemAudio.paused) return;
             if (previewAnthemAudio && !previewAnthemAudio.paused) return;
@@ -4440,11 +4427,7 @@
             playGiftSfx();
 
             // 4. Hediye Gelen Takımın Kendi Marşını Anında Çal!
-            if (anthemState.continuousLeaderAnthem) {
-                updateContinuousLeaderAnthem();
-            } else {
-                playTeamAnthem(index, true);
-            }
+            playTeamAnthem(index, true);
 
             updateCardOrders();
             saveStateNow();
@@ -5008,12 +4991,7 @@
             setTimeout(() => fireReminder(), 8000);
 
             document.getElementById('tech-panel').style.display = 'none';
-
-            if (anthemState.continuousLeaderAnthem) {
-                updateContinuousLeaderAnthem();
-            } else {
-                playGlobalBgMusic();
-            }
+            playGlobalBgMusic();
 
             if (autoConnectEnabled !== false) {
                 startAutoReconnectLoop();
