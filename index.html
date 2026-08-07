@@ -2918,7 +2918,7 @@
             html += '<button type="button" onclick="sendTestLike(15)" class="btn btn-secondary" style="font-size:8px; padding:2px 7px; border-radius:5px; line-height:1.2; font-weight:bold; cursor:pointer;">❤️ TEST (+15)</button>';
             html += '</div>';
 
-            html += '<div style="display:grid; grid-template-columns: repeat(4, 56px); gap:4px; justify-content:center; margin:0 auto;">';
+            html += '<div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:5px; width:100%; max-width:min(96vw, calc(var(--grid-cols, 3) * var(--card-width, 92px) + (var(--grid-cols, 3) - 1) * 10px)); margin:0 auto; box-sizing:border-box;">';
             
             for (let i = 0; i < 12; i++) {
                 const liker = likersArr[i];
@@ -2927,18 +2927,18 @@
                     const medalColor = i === 0 ? '#ffe600' : i === 1 ? '#e2e8f0' : i === 2 ? '#fb923c' : '#00ffcc';
                     const img = liker.profilePictureUrl || fallbackAvatar;
                     html += `
-                        <div style="width:56px; background:linear-gradient(145deg, rgba(0,255,204,0.08), rgba(0,0,0,0.65)); border:1px solid rgba(0,255,204,0.3); border-radius:8px; padding:3px 2px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.5); backdrop-filter:blur(4px); box-sizing:border-box;">
-                            <div style="position:absolute; top:1px; left:2px; font-size:7.5px; font-weight:900; color:${medalColor}; text-shadow:0 0 5px ${medalColor}88;">${medal}</div>
-                            <img src="${escapeHtml(img)}" style="width:20px; height:20px; border-radius:50%; border:1px solid ${medalColor}; object-fit:cover; margin-top:1px; margin-bottom:1px; box-shadow:0 0 5px rgba(0,255,204,0.3);" onerror="this.src='${fallbackAvatar}'">
-                            <div style="color:#ffffff; font-size:7px; font-weight:800; width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 1px; line-height:1.1;" title="${escapeHtml(liker.nickname)}">${escapeHtml(liker.nickname)}</div>
-                            <div style="color:#00ffcc; font-size:7px; font-weight:900; margin-top:1px; background:rgba(0,255,204,0.12); padding:1px 3px; border-radius:999px; border:1px solid rgba(0,255,204,0.25); line-height:1;">❤️ ${liker.likeCount}</div>
+                        <div style="width:100%; background:linear-gradient(145deg, rgba(0,255,204,0.08), rgba(0,0,0,0.65)); border:1px solid rgba(0,255,204,0.3); border-radius:8px; padding:4px 2px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.5); backdrop-filter:blur(4px); box-sizing:border-box;">
+                            <div style="position:absolute; top:1px; left:3px; font-size:8px; font-weight:900; color:${medalColor}; text-shadow:0 0 5px ${medalColor}88;">${medal}</div>
+                            <img src="${escapeHtml(img)}" style="width:22px; height:22px; border-radius:50%; border:1px solid ${medalColor}; object-fit:cover; margin-top:1px; margin-bottom:1px; box-shadow:0 0 5px rgba(0,255,204,0.3);" onerror="this.src='${fallbackAvatar}'">
+                            <div style="color:#ffffff; font-size:7.5px; font-weight:800; width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px; line-height:1.1;" title="${escapeHtml(liker.nickname)}">${escapeHtml(liker.nickname)}</div>
+                            <div style="color:#00ffcc; font-size:7.5px; font-weight:900; margin-top:1px; background:rgba(0,255,204,0.12); padding:1px 4px; border-radius:999px; border:1px solid rgba(0,255,204,0.25); line-height:1;">❤️ ${liker.likeCount}</div>
                         </div>
                     `;
                 } else {
                     html += `
-                        <div style="width:56px; background:rgba(0,0,0,0.3); border:1px dashed rgba(255,255,255,0.12); border-radius:8px; padding:3px 2px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.4; min-height:48px; box-sizing:border-box;">
-                            <div style="font-size:9px; margin-bottom:1px; opacity:0.7;">❤️</div>
-                            <div style="color:rgba(255,255,255,0.5); font-size:6px; font-weight:bold; text-align:center; line-height:1;">#${i + 1}</div>
+                        <div style="width:100%; background:rgba(0,0,0,0.3); border:1px dashed rgba(255,255,255,0.12); border-radius:8px; padding:4px 2px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.4; min-height:50px; box-sizing:border-box;">
+                            <div style="font-size:10px; margin-bottom:1px; opacity:0.7;">❤️</div>
+                            <div style="color:rgba(255,255,255,0.5); font-size:6.5px; font-weight:bold; text-align:center; line-height:1;">#${i + 1}</div>
                         </div>
                     `;
                 }
