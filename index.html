@@ -1075,8 +1075,7 @@
                         currentUsername = data.username;
                         if (data.settings) applyServerSettings(data.settings);
                         if (data.assets) await applyServerAssets(data.assets);
-                        // Görselleri IndexedDB'den belleğe yükle (yerel + sunucu)
-                        await hydrateAssets();
+                        await refreshFullUI();
                         initSettingsSync();
                         return;
                     }
@@ -1113,15 +1112,11 @@
                 currentToken = data.token;
                 currentUsername = data.username;
                 history.replaceState(null, '', '/' + currentToken);
-                if (data.settings && !data.isNew) {
-                    applyServerSettings(data.settings);
-                    if (data.assets) await applyServerAssets(data.assets);
-                    await hydrateAssets();
-                    renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect(); syncAnthemControls();
-                }
+                if (data.settings) applyServerSettings(data.settings);
+                if (data.assets) await applyServerAssets(data.assets);
+                await refreshFullUI();
                 initSettingsSync();
                 hideLoginModal();
-                updateUserDisplay();
                 showToast(data.isNew ? `Hoş geldin ${currentUsername}! Hesabın oluşturuldu.` : `Hoş geldin ${currentUsername}! Ayarlarınız yüklendi.`);
             } catch (err) {
                 errorEl.textContent = 'Sunucuya bağlanılamadı.';
@@ -1214,8 +1209,7 @@
                 if (!data || data.sessionId === SESSION_ID) return; // Kendi kaydettimizi yok say
                 if (data.settings) applyServerSettings(data.settings);
                 if (data.assets) await applyServerAssets(data.assets);
-                await hydrateAssets();
-                renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect(); syncAnthemControls();
+                await refreshFullUI();
                 showToast('🔄 Başka cihazdan ayarlar güncellendi!');
             });
         }
@@ -1336,13 +1330,7 @@
 
                 // State'i yeniden yükle ve render et
                 loadState();
-                await hydrateAssets();
-                renderGame();
-                renderTeamEditors();
-                applySavedUi();
-                renderCatalogSummary();
-                populateTeamCountSelect();
-                syncAnthemControls();
+                await refreshFullUI();
 
                 // Sunucuya da kaydet
                 if (currentToken && backup.settings) {
@@ -1452,6 +1440,7 @@
             team.score = Number(team.score || 0) || 0;
             team.selectedGiftId = String(team.selectedGiftId || '');
             team.selectedGiftDiamondCount = Number(team.selectedGiftDiamondCount || 0) || 0;
+            if (!team.logo) team.logo = base.logo;
             return team;
         }
 
@@ -1625,6 +1614,24 @@
                 currentBgDataUrl = null;
             }
             applyBackground();
+        }
+
+        async function refreshFullUI() {
+            try {
+                await hydrateAssets();
+                applySavedUi();
+                applyBackground();
+                renderGame();
+                renderTeamEditors();
+                populateTeamCountSelect();
+                renderCatalogSummary();
+                renderGiftPickerList();
+                syncAnthemControls();
+                syncBgControls();
+                updateUserDisplay();
+            } catch (err) {
+                console.error('refreshFullUI error:', err);
+            }
         }
 
         function getStoredStateObject() {
@@ -2654,13 +2661,7 @@
         async function init() {
             loadState();
             await checkAccountOnLoad();
-            await hydrateAssets();
-            renderGame();
-            renderTeamEditors();
-            populateTeamCountSelect();
-            applySavedUi();
-            renderCatalogSummary();
-            renderGiftPickerList();
+            await refreshFullUI();
             bindReminderUi();
             restartReminder();
             setTimeout(() => fireReminder(), 8000);
@@ -2669,9 +2670,7 @@
             if (saved.techPanelOpen) document.getElementById('tech-panel').style.display = 'block';
             document.getElementById('tiktok-username').value = '';
             updateConnectionStatus('status-none', 'Bağlantı Yok');
-            syncAnthemControls();
             playLeaderAnthemIfNeeded();
-            updateUserDisplay();
         }
 
         window.addEventListener('beforeunload', saveStateNow);
