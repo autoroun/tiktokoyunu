@@ -1,5 +1,8 @@
 const express = require('express');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const { Server } = require('socket.io');
 const { WebcastPushConnection } = require('tiktok-live-connector');
 
@@ -9,7 +12,30 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
+
+// ── KULLANICI YÖNETİMİ ──────────────────────────────────────────
+const USERS_FILE = path.join(__dirname, 'users.json');
+
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+  } catch (err) {}
+  return {};
+}
+
+function saveUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[USERS] Kayıt hatası:', err.message);
+  }
+}
+
+function generateToken() {
+  return crypto.randomBytes(5).toString('hex'); // 10 karakter hex
+}
 
 let tiktokConnection = null;
 let currentTargetUser = '';
@@ -292,6 +318,47 @@ app.get('/api/gifts', (_req, res) => {
     count: currentCatalog.length,
     gifts: currentCatalog
   });
+});
+
+// ── HESAP API'LERİ ───────────────────────────────────────────────
+app.post('/api/account/login', (req, res) => {
+  const raw = String(req.body?.username || '').trim();
+  const username = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!username || username.length < 2 || username.length > 30) {
+    return res.status(400).json({ error: 'Kullanıcı adı 2-30 karakter, sadece harf/rakam/alt çizgi içermeli.' });
+  }
+  const users = loadUsers();
+  const existingToken = Object.keys(users).find(t => users[t].username === username);
+  if (existingToken) {
+    return res.json({ token: existingToken, username, settings: users[existingToken].settings || null, isNew: false });
+  }
+  const token = generateToken();
+  users[token] = { username, settings: null, createdAt: new Date().toISOString() };
+  saveUsers(users);
+  return res.json({ token, username, settings: null, isNew: true });
+});
+
+app.get('/api/account/:token', (req, res) => {
+  const token = String(req.params.token || '').toLowerCase();
+  const users = loadUsers();
+  const user = users[token];
+  if (!user) return res.status(404).json({ error: 'Hesap bulunamadı.' });
+  return res.json({ username: user.username, settings: user.settings || null });
+});
+
+app.post('/api/account/:token/save', (req, res) => {
+  const token = String(req.params.token || '').toLowerCase();
+  const users = loadUsers();
+  if (!users[token]) return res.status(404).json({ error: 'Hesap bulunamadı.' });
+  users[token].settings = req.body?.settings || null;
+  users[token].updatedAt = new Date().toISOString();
+  saveUsers(users);
+  return res.json({ ok: true });
+});
+
+// Token URL'leri için index.html sun (en son olmalı)
+app.get('/*', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;

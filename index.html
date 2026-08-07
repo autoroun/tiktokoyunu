@@ -758,10 +758,39 @@
     </style>
 </head>
 <body>
+
+    <!-- ── GİRİŞ MODAL ────────────────────────────────────────── -->
+    <div id="login-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;">
+        <div style="background:linear-gradient(145deg,#0a0f1a,#060b14);border:1px solid rgba(0,255,204,.18);border-radius:24px;padding:44px 40px;width:min(420px,94vw);box-shadow:0 0 80px rgba(0,255,204,.06),0 24px 80px rgba(0,0,0,.95);">
+            <div style="text-align:center;margin-bottom:36px;">
+                <div style="font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;background:linear-gradient(to bottom,#fff 20%,#00ffcc 50%,#008877 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 14px rgba(0,255,204,.5));margin-bottom:10px;">ŞAMPİYON KİM?</div>
+                <div style="color:rgba(255,255,255,.4);font-size:11px;letter-spacing:.05em;">Ayarlarınızı kaydetmek için giriş yapın</div>
+            </div>
+            <label style="display:block;font-size:9px;font-weight:800;color:rgba(0,255,204,.65);letter-spacing:.18em;margin-bottom:8px;">KULLANICI ADI</label>
+            <input id="login-username-input" type="text" placeholder="ornekisim" autocomplete="off" spellcheck="false"
+                style="width:100%;padding:14px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(0,255,204,.2);border-radius:12px;color:#fff;font-size:14px;font-weight:600;outline:none;box-sizing:border-box;transition:.2s;font-family:inherit;margin-bottom:6px;"
+                oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"
+                onkeydown="if(event.key==='Enter')doLogin()"
+                onfocus="this.style.borderColor='rgba(0,255,204,.5)'"
+                onblur="this.style.borderColor='rgba(0,255,204,.2)'">
+            <div id="login-error" style="color:#ff6b6b;font-size:10px;min-height:16px;margin-bottom:10px;font-weight:600;"></div>
+            <button onclick="doLogin()" id="login-btn"
+                style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(0,255,204,.1),rgba(0,255,204,.2));border:1px solid rgba(0,255,204,.42);border-radius:12px;color:#00ffcc;font-weight:900;font-size:12px;letter-spacing:.12em;cursor:pointer;transition:.2s;font-family:'Orbitron',sans-serif;box-sizing:border-box;"
+                onmouseover="this.style.background='linear-gradient(135deg,rgba(0,255,204,.2),rgba(0,255,204,.35))'"
+                onmouseout="this.style.background='linear-gradient(135deg,rgba(0,255,204,.1),rgba(0,255,204,.2))'">
+                GİRİŞ YAP / HESAP OLUŞTUR
+            </button>
+            <div style="margin-top:18px;font-size:9px;color:rgba(255,255,255,.28);text-align:center;line-height:1.7;">
+                Mevcut kullanıcı adınızı girerseniz hesabınıza giriş yaparsınız.<br>
+                Yeni bir ad girerseniz otomatik hesap oluşturulur.
+            </div>
+        </div>
+    </div>
+
     <header class="top-hud p-4 flex justify-between items-center border-b border-white/10 bg-black/80 z-[110] backdrop-blur">
         <i class="fas fa-bars settings-trigger" onclick="toggleMenu()"></i>
         <h1 class="neon-title">ŞAMPİYON KİM?</h1>
-        <div class="w-8"></div>
+        <div id="user-display-header" onclick="toggleMenu()" title="Hesabım • Ayarlar" style="font-size:9px;font-weight:700;color:rgba(0,255,204,.65);min-width:60px;text-align:right;cursor:pointer;line-height:1.4;"></div>
     </header>
 
     <div class="main-layout">
@@ -771,7 +800,20 @@
     <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
 
     <div id="settings-menu">
-        <h2 class="text-xl font-black mb-6 border-b border-white/10 pb-2 text-green-400 font-['Orbitron']">AYARLAR</h2>
+        <h2 class="text-xl font-black mb-4 border-b border-white/10 pb-2 text-green-400 font-['Orbitron']">AYARLAR</h2>
+
+        <div class="setting-section border border-green-500/25" id="account-section">
+            <h3 class="text-[10px] font-bold text-green-400 mb-3">HESABIM</h3>
+            <div id="user-display-panel" class="text-[10px] font-bold text-white/70 mb-2"></div>
+            <div class="flex flex-col gap-2">
+                <label class="text-[9px] text-white/50 font-bold tracking-widest">ÖZEL BAĞLANTINIZ</label>
+                <div class="flex gap-2">
+                    <input id="account-url-display" type="text" readonly value="" style="flex:1;font-size:9px;background:rgba(255,255,255,.04);cursor:default;">
+                    <button onclick="copyAccountUrl()" class="btn btn-secondary" style="font-size:9px;white-space:nowrap;padding:6px 10px;">KOPYALA</button>
+                </div>
+                <div class="mini-help">Bu URL ile herhangi bir cihazdan ayarlarınıza erişebilirsiniz.</div>
+            </div>
+        </div>
 
         <div class="setting-section border border-blue-500/30">
             <h3 class="text-[10px] font-bold text-blue-400 mb-4">TIKTOK CANLI YAYIN BAĞLANTISI</h3>
@@ -812,7 +854,8 @@
 
         <div id="team-editor-list"></div>
 
-        <button onclick="toggleMenu()" class="btn btn-success w-full mt-4 sticky bottom-0">KAPAT</button>
+        <button onclick="saveAllSettings()" id="btn-save-all" class="btn btn-accent w-full mt-4">💾 TÜM AYARLARI KAYDET</button>
+        <button onclick="toggleMenu()" class="btn btn-success w-full mt-2 sticky bottom-0">KAPAT</button>
     </div>
 
     <div id="gift-picker-modal" class="modal">
@@ -940,6 +983,135 @@
         const DB_NAME = 'champion-kim-assets';
         const DB_STORE = 'files';
         const DEFAULT_REMINDER_TEXT = 'DESTEKLEMEK İSTEDİĞİN TAKIMIN HEDİYESİNİ GÖNDER';
+
+        // ── KULLANICI HESABI SİSTEMİ ──────────────────────────────────
+        let currentToken = null;
+        let currentUsername = null;
+        let serverSaveTimer = null;
+
+        async function checkAccountOnLoad() {
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const urlToken = pathParts[0] || null;
+            if (urlToken && /^[a-f0-9]{10}$/.test(urlToken)) {
+                try {
+                    const res = await fetch('/api/account/' + urlToken);
+                    if (res.ok) {
+                        const data = await res.json();
+                        currentToken = urlToken;
+                        currentUsername = data.username;
+                        if (data.settings) applyServerSettings(data.settings);
+                        return;
+                    }
+                } catch (err) {}
+            }
+            showLoginModal();
+        }
+
+        function showLoginModal() {
+            const m = document.getElementById('login-modal');
+            if (m) { m.style.display = 'flex'; setTimeout(() => { const i = document.getElementById('login-username-input'); if(i) i.focus(); }, 150); }
+        }
+
+        function hideLoginModal() {
+            const m = document.getElementById('login-modal');
+            if (m) m.style.display = 'none';
+        }
+
+        async function doLogin() {
+            const input = document.getElementById('login-username-input');
+            const errorEl = document.getElementById('login-error');
+            const btn = document.getElementById('login-btn');
+            const username = (input.value || '').trim();
+            if (!username || username.length < 2) { errorEl.textContent = 'En az 2 karakter girin.'; return; }
+            btn.textContent = 'Yükleniyor...'; btn.disabled = true; errorEl.textContent = '';
+            try {
+                const res = await fetch('/api/account/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if (!res.ok) { errorEl.textContent = data.error || 'Hata oluştu.'; btn.textContent = 'GİRİŞ YAP / HESAP OLUŞTUR'; btn.disabled = false; return; }
+                currentToken = data.token;
+                currentUsername = data.username;
+                history.replaceState(null, '', '/' + currentToken);
+                if (data.settings && !data.isNew) {
+                    applyServerSettings(data.settings);
+                    renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect();
+                }
+                hideLoginModal();
+                updateUserDisplay();
+                showToast(data.isNew ? `Hoş geldin ${currentUsername}! Hesabın oluşturuldu.` : `Hoş geldin ${currentUsername}! Ayarlarınız yüklendi.`);
+            } catch (err) {
+                errorEl.textContent = 'Sunucuya bağlanılamadı.';
+                btn.textContent = 'GİRİŞ YAP / HESAP OLUŞTUR'; btn.disabled = false;
+            }
+        }
+
+        function applyServerSettings(settings) {
+            if (!settings) return;
+            try {
+                if (settings.teamCount) teamCount = clampTeamCount(settings.teamCount);
+                if (Array.isArray(settings.teams)) {
+                    teams = [];
+                    for (let i = 0; i < teamCount; i++) {
+                        const t = normalizeTeam(settings.teams[i], i); t.score = 0; teams.push(t);
+                    }
+                }
+                if (Array.isArray(settings.giftCatalog)) giftCatalog = settings.giftCatalog;
+                if (settings.giftSortOrder) giftSortOrder = settings.giftSortOrder === 'asc' ? 'asc' : 'desc';
+                if (settings.styleState) Object.assign(styleState, settings.styleState);
+                if (settings.reminderState) Object.assign(reminderState, settings.reminderState);
+                if (settings.anthemState) Object.assign(anthemState, settings.anthemState);
+                anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                anthemState.mute = !!anthemState.mute;
+                applyGridCols(teamCount);
+            } catch (err) { console.error('applyServerSettings error:', err); }
+        }
+
+        async function saveToServer(state) {
+            if (!currentToken || !state) return;
+            try {
+                await fetch('/api/account/' + currentToken + '/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: state })
+                });
+            } catch (err) { console.error('[SAVE] Sunucu kayıt hatası:', err); }
+        }
+
+        function debounceSaveToServer(state) {
+            clearTimeout(serverSaveTimer);
+            serverSaveTimer = setTimeout(() => saveToServer(state), 1500);
+        }
+
+        async function saveAllSettings() {
+            const btn = document.getElementById('btn-save-all');
+            if (btn) { btn.textContent = '⏳ Kaydediliyor...'; btn.disabled = true; }
+            saveStateNow();
+            const state = getStoredStateObject();
+            await saveToServer(state);
+            if (btn) { btn.textContent = '✅ Kaydedildi!'; setTimeout(() => { btn.textContent = '💾 TÜM AYARLARI KAYDET'; btn.disabled = false; }, 2200); }
+            showToast('Tüm ayarlar sunucuya kaydedildi! ✅');
+        }
+
+        function copyAccountUrl() {
+            const input = document.getElementById('account-url-display');
+            if (!input || !input.value) { showToast('Önce giriş yapın.'); return; }
+            navigator.clipboard.writeText(input.value)
+                .then(() => showToast('URL panoya kopyalandı! 🔗'))
+                .catch(() => { try { input.select(); document.execCommand('copy'); showToast('URL kopyalandı!'); } catch(e){} });
+        }
+
+        function updateUserDisplay() {
+            const hdr = document.getElementById('user-display-header');
+            if (hdr) hdr.textContent = currentUsername ? '👤 ' + currentUsername : '';
+            const panel = document.getElementById('user-display-panel');
+            if (panel) panel.textContent = currentUsername ? '👤 ' + currentUsername : '';
+            const urlEl = document.getElementById('account-url-display');
+            if (urlEl && currentToken) urlEl.value = window.location.origin + '/' + currentToken;
+        }
+        // ────────────────────────────────────────────────────────────────
 
         let socket = null;
         let isConnected = false;
@@ -1106,6 +1278,7 @@
                     techPanelOpen: document.getElementById('tech-panel').style.display !== 'none'
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                debounceSaveToServer(state);
             } catch (err) {
                 console.error('State save error:', err);
             }
@@ -1964,6 +2137,7 @@
 
         async function init() {
             loadState();
+            await checkAccountOnLoad();
             await hydrateAssets();
             renderGame();
             renderTeamEditors();
@@ -1981,6 +2155,7 @@
             updateConnectionStatus('status-none', 'Bağlantı Yok');
             syncAnthemControls();
             playLeaderAnthemIfNeeded();
+            updateUserDisplay();
         }
 
         window.addEventListener('beforeunload', saveStateNow);
