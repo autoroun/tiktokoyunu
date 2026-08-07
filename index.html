@@ -25,7 +25,7 @@
 
         body {
             font-family: 'Roboto', sans-serif;
-            background: radial-gradient(circle at top, #101827 0%, #050505 46%, #000 100%);
+            background: #04060c;
             color: white;
             margin: 0;
             overflow: hidden;
@@ -57,6 +57,7 @@
             flex: 1;
             overflow: hidden;
             position: relative;
+            z-index: 2;
         }
 
         .game-grid {
@@ -1084,14 +1085,14 @@
 <body>
 
     <!-- ── ARKA PLAN KATMANI ────────────────────────────────────── -->
-    <div id="app-background-layer" style="position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none;transition:filter .2s, opacity .2s;">
-        <video id="bg-video-el" loop playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
-        <div id="bg-image-el" style="width:100%;height:100%;background-size:cover;background-position:center;display:none;"></div>
-        <div id="yt-player-wrap" class="yt-bg-wrap" style="display:none;">
+    <div id="app-background-layer" style="position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:radial-gradient(circle at top, #101827 0%, #050505 46%, #000 100%);transition:filter .2s, opacity .2s;">
+        <video id="bg-video-el" loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;"></video>
+        <div id="bg-image-el" style="position:absolute;inset:0;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;display:none;"></div>
+        <div id="yt-player-wrap" class="yt-bg-wrap" style="position:absolute;inset:0;width:100%;height:100%;display:none;">
             <div id="yt-player-container"></div>
         </div>
     </div>
-    <div id="app-background-overlay" style="position:fixed;inset:0;z-index:-1;pointer-events:none;background:rgba(0,0,0,0.4);transition:background .2s;"></div>
+    <div id="app-background-overlay" style="position:fixed;inset:0;z-index:1;pointer-events:none;background:rgba(0,0,0,0.4);transition:background .2s;"></div>
 
     <!-- ── ŞİMŞEK & ELEKTRİK KATMANI ──────────────────────────── -->
     <div id="lightning-overlay"></div>
