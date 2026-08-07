@@ -1731,8 +1731,7 @@
                     reminderState: { ...reminderState },
                     anthemState: { ...anthemState },
                     bgState: { ...bgState },
-                    giftSfxState: { ...giftSfxState },
-                    techPanelOpen: document.getElementById('tech-panel').style.display !== 'none'
+                    giftSfxState: { ...giftSfxState }
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 debounceSaveToServer(state);
@@ -3415,8 +3414,7 @@
             restartReminder();
             setTimeout(() => fireReminder(), 8000);
 
-            const saved = getStoredStateObject();
-            if (saved.techPanelOpen) document.getElementById('tech-panel').style.display = 'block';
+            document.getElementById('tech-panel').style.display = 'none';
             document.getElementById('tiktok-username').value = '';
             updateConnectionStatus('status-none', 'Bağlantı Yok');
             playLeaderAnthemIfNeeded();
