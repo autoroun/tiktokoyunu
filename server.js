@@ -400,6 +400,21 @@ app.get('/{*path}', (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error('\n====================================================================');
+    console.error(`  ⚠️ HATA: Port ${PORT} zaten kullanımda!`);
+    console.error('  Sunucu veya başka bir Node.js penceresi zaten açık ve çalışıyor.');
+    console.error(`  http://localhost:${PORT} adresine tarayıcıdan bağlanabilirsiniz.`);
+    console.error('  Sunucuyu yeniden başlatmak isterseniz mevcut Node.js sürecini kapatın.');
+    console.error('====================================================================\n');
+    process.exit(1);
+  } else {
+    console.error('Sunucu hatası:', err);
+  }
+});
+
 server.listen(PORT, () => {
   console.log('\n=========================================');
   console.log(`  SUNUCU AKTIF: http://localhost:${PORT}`);
