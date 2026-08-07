@@ -1362,32 +1362,22 @@
             } catch (err) { console.error('applyServerSettings error:', err); }
         }
 
-        // settings-only hızlı kayıt (otomatik, debounce)
-        async function saveToServer(state) {
-            if (!currentToken || !state) return;
+        async function collectAllAssets() {
+            const assets = {};
             try {
-                await fetch('/api/account/' + currentToken + '/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ settings: state, sessionId: SESSION_ID })
-                });
-            } catch (err) { console.error('[SAVE] Sunucu kayıt hatası:', err); }
-        }
-
-        // assets dahil tam kayıt (sadece manuel buton ile)
-        async function saveFullToServer(state) {
-            if (!currentToken || !state) return;
-            try {
-                const assets = {};
-                const n = state.teamCount || teamCount;
+                const n = teamCount;
                 for (let i = 0; i < n; i++) {
-                    const logo = await idbGet(`team:${i}:logo`);
-                    if (logo) assets[`team:${i}:logo`] = logo;
-                    const anthem = await idbGet(`team:${i}:anthem`);
-                    if (anthem) assets[`team:${i}:anthem`] = anthem;
+                    const logoKey = teams[i]?.logoAssetKey || `team:${i}:logo`;
+                    const anthemKey = teams[i]?.anthemAssetKey || `team:${i}:anthem`;
+                    const logo = await idbGet(logoKey);
+                    if (logo) assets[logoKey] = logo;
+                    const anthem = await idbGet(anthemKey);
+                    if (anthem) assets[anthemKey] = anthem;
                 }
-                const sfx = await idbGet(reminderSfxAssetKey);
-                if (sfx) assets[reminderSfxAssetKey] = sfx;
+                if (reminderState.sfxAssetKey) {
+                    const sfx = await idbGet(reminderState.sfxAssetKey);
+                    if (sfx) assets[reminderState.sfxAssetKey] = sfx;
+                }
                 if (Array.isArray(giftSfxState.sfxList)) {
                     for (const item of giftSfxState.sfxList) {
                         const sfxData = await idbGet(`global:gift-sfx:${item.id}`);
@@ -1396,16 +1386,28 @@
                 }
                 const bg = await idbGet('global:background');
                 if (bg) assets['global:background'] = bg;
+            } catch (err) { console.error('collectAllAssets error:', err); }
+            return assets;
+        }
 
+        // Sunucu hesabına tam ve doğrudan kayıt (otomatik & anlık)
+        async function saveToServer(state) {
+            if (!currentToken || !state) return;
+            try {
+                const assets = await collectAllAssets();
                 const resp = await fetch('/api/account/' + currentToken + '/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ settings: state, assets, sessionId: SESSION_ID })
                 });
                 if (!resp.ok && resp.status === 413) {
-                    showToast('⚠️ Bazı dosyalar çok büyük, görseller kaydedilemedi.');
+                    console.warn('[SAVE] Bazı dosyalar çok büyük olduğu için sunucuya iletilemedi.');
                 }
-            } catch (err) { console.error('[SAVE-FULL] Sunucu kayıt hatası:', err); }
+            } catch (err) { console.error('[SAVE] Sunucu kayıt hatası:', err); }
+        }
+
+        async function saveFullToServer(state) {
+            await saveToServer(state);
         }
 
         async function applyServerAssets(assets) {
