@@ -1309,6 +1309,8 @@
         let reminderSfxAudio = null;
         let leaderAnthemAudio = null;
         let lastLeaderTeamId = null;
+        let previewAnthemAudio = null;
+        let previewingAnthemTeamIndex = null;
         let saveTimer = null;
         let manualDisconnect = false;
 
@@ -1499,6 +1501,16 @@
             });
         }
 
+        async function idbDel(key) {
+            const db = await openAssetDb();
+            return await new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readwrite');
+                tx.objectStore(DB_STORE).delete(key);
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
         function fileToDataUrl(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -1663,6 +1675,8 @@
                 const giftText = formatGiftSummary(team);
                 const anthemLabel = team.anthemFileName ? `Yüklü: ${team.anthemFileName}` : (team.anthem ? 'Yüklü' : 'Yok');
                 const logoLabel = team.logoFileName ? `Yüklü: ${team.logoFileName}` : (team.logoAssetKey ? 'Yüklü' : 'Varsayılan');
+                const isPreviewingThis = previewingAnthemTeamIndex === index;
+
                 const div = document.createElement('div');
                 div.className = 'team-editor-card';
                 div.innerHTML = `
@@ -1683,12 +1697,29 @@
                         <div>
                             <label>LOGO YÜKLE</label>
                             <input type="file" accept="image/*" onchange="handleTeamFile(this, ${index}, 'logo')">
-                            <div class="mini-help mt-1">${escapeHtml(logoLabel)}</div>
+                            <div class="flex items-center gap-1 mt-1">
+                                ${team.logoAssetKey ? `
+                                    <button type="button" class="btn btn-secondary" style="font-size:9px;padding:3px 6px;" onclick="removeTeamLogo(${index})" title="Logoyu Sil">
+                                        🗑️
+                                    </button>
+                                ` : ''}
+                                <span class="mini-help flex-1 text-ellipsis overflow-hidden whitespace-nowrap">${escapeHtml(logoLabel)}</span>
+                            </div>
                         </div>
                         <div>
-                            <label>MARŞ YÜKLE</label>
+                            <label>MARŞ (YÜKLE / OYNAT)</label>
                             <input type="file" accept="audio/*" onchange="handleTeamFile(this, ${index}, 'anthem')">
-                            <div class="mini-help mt-1">${escapeHtml(anthemLabel)}</div>
+                            <div class="flex items-center gap-1 mt-1">
+                                ${team.anthem ? `
+                                    <button type="button" class="btn ${isPreviewingThis ? 'btn-danger' : 'btn-accent'}" style="font-size:9px;padding:3px 8px;white-space:nowrap;" onclick="toggleAnthemPreview(${index})">
+                                        ${isPreviewingThis ? '⏹ DURDUR' : '▶ DİNLE'}
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" style="font-size:9px;padding:3px 6px;" onclick="removeTeamAnthem(${index})" title="Marşı Sil">
+                                        🗑️
+                                    </button>
+                                ` : ''}
+                                <span class="mini-help flex-1 text-ellipsis overflow-hidden whitespace-nowrap">${escapeHtml(anthemLabel)}</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1826,6 +1857,10 @@
         }
 
         function toggleMenu() {
+            const menu = document.getElementById('settings-menu');
+            if (menu && menu.classList.contains('open')) {
+                stopAnthemPreview();
+            }
             document.getElementById('settings-menu').classList.toggle('open');
             document.getElementById('overlay').classList.toggle('active');
         }
@@ -1908,6 +1943,99 @@
                 leaderAnthemAudio.muted = !!anthemState.mute;
                 leaderAnthemAudio.volume = vol;
             }
+            if (previewAnthemAudio) {
+                previewAnthemAudio.muted = !!anthemState.mute;
+                previewAnthemAudio.volume = vol;
+            }
+        }
+
+        function toggleAnthemPreview(index) {
+            if (previewingAnthemTeamIndex === index && previewAnthemAudio) {
+                stopAnthemPreview();
+                return;
+            }
+
+            stopAnthemPreview();
+            stopLeaderAnthem(false);
+
+            const team = teams[index];
+            if (!team || !team.anthem) {
+                showToast('Bu takım için marş yüklenmemiş.');
+                return;
+            }
+
+            primeAudioPlayback();
+            try {
+                const audio = new Audio(team.anthem);
+                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                audio.muted = !!anthemState.mute;
+                previewAnthemAudio = audio;
+                previewingAnthemTeamIndex = index;
+
+                audio.onended = () => {
+                    stopAnthemPreview();
+                };
+
+                audio.onerror = (err) => {
+                    console.error('Anthem preview error:', err);
+                    showToast('Marş çalınamadı. MP3 formatı geçersiz olabilir.');
+                    stopAnthemPreview();
+                };
+
+                const p = audio.play();
+                if (p && typeof p.catch === 'function') {
+                    p.catch(e => {
+                        console.error('Play error:', e);
+                        showToast('Ses oynatılamadı. Sayfaya bir kez tıklayıp tekrar deneyin.');
+                        stopAnthemPreview();
+                    });
+                }
+                renderTeamEditors();
+            } catch (err) {
+                console.error(err);
+                stopAnthemPreview();
+            }
+        }
+
+        function stopAnthemPreview() {
+            if (previewAnthemAudio) {
+                try {
+                    previewAnthemAudio.pause();
+                    previewAnthemAudio.currentTime = 0;
+                    previewAnthemAudio.src = '';
+                } catch (e) {}
+            }
+            previewAnthemAudio = null;
+            previewingAnthemTeamIndex = null;
+            renderTeamEditors();
+        }
+
+        async function removeTeamAnthem(index) {
+            if (!teams[index]) return;
+            if (previewingAnthemTeamIndex === index) {
+                stopAnthemPreview();
+            }
+            const key = teams[index].anthemAssetKey || `team:${index}:anthem`;
+            await idbDel(key);
+            teams[index].anthem = '';
+            teams[index].anthemAssetKey = '';
+            teams[index].anthemFileName = '';
+            renderTeamEditors();
+            debounceSave();
+            showToast(`${teams[index].name} marşı silindi.`);
+        }
+
+        async function removeTeamLogo(index) {
+            if (!teams[index]) return;
+            const key = teams[index].logoAssetKey || `team:${index}:logo`;
+            await idbDel(key);
+            teams[index].logo = makeDefaultTeam(index + 1).logo;
+            teams[index].logoAssetKey = '';
+            teams[index].logoFileName = '';
+            renderGame();
+            renderTeamEditors();
+            debounceSave();
+            showToast(`${teams[index].name} logosu varsayılana döndürüldü.`);
         }
 
         function playLeaderAnthemIfNeeded(forceRestart = false, scoredIndex = null) {
