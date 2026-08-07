@@ -1807,10 +1807,20 @@
                         if (!teams[i]) teams[i] = makeDefaultTeam(i + 1);
                         
                         teams[i].name = newT.name || teams[i].name;
+                        if (newT.abbr) teams[i].abbr = newT.abbr;
+                        if (newT.color) teams[i].color = newT.color;
                         if (newT.logo) teams[i].logo = newT.logo;
                         if (newT.logoAssetKey) teams[i].logoAssetKey = newT.logoAssetKey;
                         if (newT.logoFileName) teams[i].logoFileName = newT.logoFileName;
-                        if (newT.giftId !== undefined) teams[i].giftId = newT.giftId;
+                        
+                        // Hediye eşleştirmelerini eksiksiz geri yükle
+                        if (newT.selectedGiftId !== undefined) teams[i].selectedGiftId = String(newT.selectedGiftId || '');
+                        else if (newT.giftId !== undefined) teams[i].selectedGiftId = String(newT.giftId || '');
+
+                        if (newT.selectedGiftName !== undefined) teams[i].selectedGiftName = newT.selectedGiftName || '';
+                        if (newT.selectedGiftImage !== undefined) teams[i].selectedGiftImage = newT.selectedGiftImage || '';
+                        if (newT.selectedGiftDiamondCount !== undefined) teams[i].selectedGiftDiamondCount = Number(newT.selectedGiftDiamondCount || 0) || 0;
+
                         if (newT.anthem !== undefined) teams[i].anthem = newT.anthem;
                         if (newT.anthemAssetKey !== undefined) teams[i].anthemAssetKey = newT.anthemAssetKey;
                         if (newT.anthemFileName !== undefined) teams[i].anthemFileName = newT.anthemFileName;
@@ -2335,7 +2345,13 @@
 
         function debounceSave() {
             clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveStateNow, 180);
+            saveTimer = setTimeout(() => {
+                saveStateNow();
+                if (currentToken) {
+                    const state = getStoredStateObject();
+                    debounceSaveToServer(state);
+                }
+            }, 250);
         }
 
         function serializeTeams() {
