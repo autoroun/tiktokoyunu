@@ -1351,11 +1351,14 @@
                 if (settings.reminderState) Object.assign(reminderState, settings.reminderState);
                 if (settings.anthemState) Object.assign(anthemState, settings.anthemState);
                 if (settings.bgState) Object.assign(bgState, settings.bgState);
+                if (settings.giftSfxState) Object.assign(giftSfxState, settings.giftSfxState);
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
+                reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
                 applyGridCols(teamCount);
                 applyBackground();
                 syncBgControls();
+                syncGiftSfxControls();
             } catch (err) { console.error('applyServerSettings error:', err); }
         }
 
@@ -1953,6 +1956,7 @@
             syncReminderLabels();
             syncAnthemControls();
             syncBgControls();
+            syncGiftSfxControls();
             applyBackground();
             document.getElementById('reminder-sfx-val').textContent = reminderSfxUrl ? 'Yüklü' : 'Yok';
 

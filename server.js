@@ -337,7 +337,13 @@ app.post('/api/account/login', (req, res) => {
   const users = loadUsers();
   const existingToken = Object.keys(users).find(t => users[t].username === username);
   if (existingToken) {
-    return res.json({ token: existingToken, username, settings: users[existingToken].settings || null, isNew: false });
+    return res.json({
+      token: existingToken,
+      username,
+      settings: users[existingToken].settings || null,
+      assets: users[existingToken].assets || null,
+      isNew: false
+    });
   }
   const token = generateToken();
   users[token] = { username, settings: null, createdAt: new Date().toISOString() };
