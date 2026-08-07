@@ -2264,7 +2264,6 @@
                     topLikers: { ...topLikers },
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-                debounceSaveToServer(state);
             } catch (err) {
                 console.error('State save error:', err);
             }
@@ -4335,7 +4334,8 @@
             const val = inputEl ? String(inputEl.value || '').trim().replace(/^@+/, '') : tiktokTargetUsername;
             tiktokTargetUsername = val;
             saveStateNow();
-            debounceSave();
+            const state = getStoredStateObject();
+            saveToServer(state);
             const saveBtn = document.getElementById('btn-save-username');
             if (saveBtn) {
                 saveBtn.textContent = '✅ KAYDEDİLDİ';
@@ -4794,7 +4794,6 @@
             startRandomLogoSpinLoop();
         }
 
-        window.addEventListener('beforeunload', saveStateNow);
         window.addEventListener('storage', async (event) => {
             if (event.key === STORAGE_KEY && event.newValue) {
                 try {
