@@ -201,6 +201,24 @@
             display: none;
         }
 
+        .yt-bg-wrap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 56.25vw;
+            min-height: 100vh;
+            min-width: 177.77vh;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .yt-bg-wrap iframe {
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none !important;
+        }
+
         .team-gift-badge img {
             width: 44px;
             height: 44px;
@@ -764,6 +782,9 @@
     <div id="app-background-layer" style="position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none;transition:filter .2s, opacity .2s;">
         <video id="bg-video-el" loop playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
         <div id="bg-image-el" style="width:100%;height:100%;background-size:cover;background-position:center;display:none;"></div>
+        <div id="yt-player-wrap" class="yt-bg-wrap" style="display:none;">
+            <div id="yt-player-container"></div>
+        </div>
     </div>
     <div id="app-background-overlay" style="position:fixed;inset:0;z-index:-1;pointer-events:none;background:rgba(0,0,0,0.4);transition:background .2s;"></div>
 
@@ -861,15 +882,47 @@
         </div>
 
         <div class="setting-section border border-purple-500/30" style="margin-top:16px;">
-            <h3 class="text-[10px] font-bold text-purple-400 mb-3">🎨 ARKA PLAN (Görsel / GIF / Video)</h3>
+            <h3 class="text-[10px] font-bold text-purple-400 mb-3">🎨 ARKA PLAN (Görsel / GIF / MP4 / YouTube)</h3>
             <div class="flex flex-col gap-3">
                 <div>
-                    <label class="text-[9px] text-white/60 font-bold block mb-1">ARKA PLAN YÜKLE (Görsel, GIF veya MP4 Video)</label>
-                    <input type="file" id="bg-file-input" accept="image/*,video/*" onchange="handleBackgroundFile(this)" style="width:100%;font-size:10px;">
-                    <div id="bg-file-info" class="mini-help mt-1 text-purple-300 font-bold">Varsayılan Gradient Arka Plan</div>
+                    <label class="text-[9px] text-white/60 font-bold block mb-1">ARKA PLAN TÜRÜ</label>
+                    <select id="bg-type-select" onchange="changeBgType(this.value)" style="font-size:10px;font-weight:bold;">
+                        <option value="none">Varsayılan Gradient</option>
+                        <option value="image">Dosya: Görsel / GIF</option>
+                        <option value="file_video">Dosya: MP4 / WebM Video</option>
+                        <option value="youtube">▶️ YouTube Video / Oynatma Listesi</option>
+                    </select>
                 </div>
 
-                <button onclick="clearBackground()" class="btn btn-danger text-[9px] w-full">ARKA PLANI KALDIR (Varsayılana Dön)</button>
+                <div id="bg-file-wrap">
+                    <label class="text-[9px] text-white/60 font-bold block mb-1">DOSYA YÜKLE</label>
+                    <input type="file" id="bg-file-input" accept="image/*,video/*" onchange="handleBackgroundFile(this)" style="width:100%;font-size:10px;">
+                    <div id="bg-file-info" class="mini-help mt-1 text-purple-300 font-bold">Varsayılan Gradient Arka Plan</div>
+                    <button onclick="clearBackground()" class="btn btn-danger text-[9px] w-full mt-2">ARKA PLANI KALDIR (Varsayılana Dön)</button>
+                </div>
+
+                <div id="bg-youtube-wrap" style="display:none;background:rgba(0,0,0,0.35);padding:10px;border-radius:10px;border:1px solid rgba(234,179,8,0.3);">
+                    <div class="text-[9px] font-bold text-yellow-400 mb-2">▶️ YOUTUBE OYNATMA LİSTESİ</div>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="yt-url-input" placeholder="YouTube Linki veya ID yapıştır..." style="flex:1;font-size:10px;" onkeydown="if(event.key==='Enter')addYouTubeVideo()">
+                        <button onclick="addYouTubeVideo()" class="btn btn-accent text-[9px]" style="white-space:nowrap;">+ EKLE</button>
+                    </div>
+                    <div id="yt-playlist-items" class="flex flex-col gap-1 max-h-[160px] overflow-y-auto mb-2"></div>
+                    <div class="mini-help">Birden fazla video ekleyebilirsiniz. Sırayla çalar, bittiğinde otomatik diğerine geçer ve döngüye girer.</div>
+
+                    <div class="text-[9px] font-bold text-yellow-400 mt-3 mb-2">🔊 YOUTUBE SES AYARLARI</div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input id="yt-video-mute" type="checkbox" onchange="updateBgParam('ytMute', this.checked)">
+                        <label for="yt-video-mute" class="text-[9px] font-bold text-white cursor-pointer">Videoyu Sustur (Mute)</label>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center text-[9px] mb-1">
+                            <label>YouTube Ses Seviyesi:</label>
+                            <span id="yt-video-vol-val" class="font-bold text-yellow-300">50%</span>
+                        </div>
+                        <input id="yt-video-vol-slider" type="range" min="0" max="100" value="50" oninput="updateBgParam('ytVolume', this.value)">
+                    </div>
+                </div>
 
                 <div>
                     <div class="flex justify-between items-center text-[9px] mb-1">
@@ -896,7 +949,7 @@
                 </div>
 
                 <div id="bg-video-controls" style="display:none;background:rgba(0,0,0,0.35);padding:10px;border-radius:10px;border:1px solid rgba(168,85,247,0.3);">
-                    <div class="text-[9px] font-bold text-purple-300 mb-2">🎬 VİDEO SES AYARLARI</div>
+                    <div class="text-[9px] font-bold text-purple-300 mb-2">🎬 DOSYA VİDEO SES AYARLARI</div>
                     <div class="flex items-center gap-2 mb-2">
                         <input id="bg-video-mute" type="checkbox" onchange="updateBgParam('mute', this.checked)">
                         <label for="bg-video-mute" class="text-[9px] font-bold text-white cursor-pointer">Videoyu Sustur (Mute)</label>
@@ -1421,7 +1474,11 @@
             darken: 40,
             mute: true,
             volume: 50,
-            fileName: ''
+            fileName: '',
+            ytPlaylist: [],
+            ytCurrentIndex: 0,
+            ytMute: true,
+            ytVolume: 50
         };
         let currentBgDataUrl = null;
 
@@ -1977,6 +2034,166 @@
         }
 
         // ── ARKA PLAN YÖNETİMİ ──────────────────────────────────────────
+        let ytPlayer = null;
+        let ytApiReady = false;
+
+        function parseYouTubeId(input) {
+            if (!input) return null;
+            const str = String(input).trim();
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = str.match(regExp);
+            if (match && match[2] && match[2].length === 11) {
+                return match[2];
+            }
+            if (str.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(str)) {
+                return str;
+            }
+            return null;
+        }
+
+        function initYouTubeApiIfNeeded() {
+            if (window.YT && window.YT.Player) {
+                ytApiReady = true;
+                return;
+            }
+            if (document.getElementById('yt-api-script')) return;
+            const tag = document.createElement('script');
+            tag.id = 'yt-api-script';
+            tag.src = 'https://www.youtube.com/iframe_api';
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        window.onYouTubeIframeAPIReady = function() {
+            ytApiReady = true;
+            if (bgState.type === 'youtube') {
+                loadYouTubePlayer();
+            }
+        };
+
+        function addYouTubeVideo() {
+            const input = document.getElementById('yt-url-input');
+            const val = (input ? input.value : '').trim();
+            const id = parseYouTubeId(val);
+            if (!id) {
+                showToast('Geçersiz YouTube linki veya Video ID.');
+                return;
+            }
+            if (!Array.isArray(bgState.ytPlaylist)) bgState.ytPlaylist = [];
+            bgState.ytPlaylist.push({ id });
+            bgState.type = 'youtube';
+            if (input) input.value = '';
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+            showToast('YouTube videosu listeye eklendi! ▶️');
+        }
+
+        function removeYouTubeVideo(index) {
+            if (!Array.isArray(bgState.ytPlaylist) || !bgState.ytPlaylist[index]) return;
+            bgState.ytPlaylist.splice(index, 1);
+            if (bgState.ytCurrentIndex >= bgState.ytPlaylist.length) {
+                bgState.ytCurrentIndex = Math.max(0, bgState.ytPlaylist.length - 1);
+            }
+            if (!bgState.ytPlaylist.length) {
+                bgState.type = 'none';
+            }
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+            showToast('YouTube videosu listeden çıkarıldı.');
+        }
+
+        function playYouTubeVideoAtIndex(index) {
+            if (!Array.isArray(bgState.ytPlaylist) || !bgState.ytPlaylist[index]) return;
+            bgState.ytCurrentIndex = index;
+            bgState.type = 'youtube';
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+        }
+
+        function playNextYouTubeVideo() {
+            if (!Array.isArray(bgState.ytPlaylist) || !bgState.ytPlaylist.length) return;
+            bgState.ytCurrentIndex = (bgState.ytCurrentIndex + 1) % bgState.ytPlaylist.length;
+            loadYouTubePlayer();
+            syncBgControls();
+        }
+
+        function loadYouTubePlayer() {
+            initYouTubeApiIfNeeded();
+            const playlist = bgState.ytPlaylist || [];
+            if (!playlist.length) return;
+
+            if (bgState.ytCurrentIndex < 0 || bgState.ytCurrentIndex >= playlist.length) {
+                bgState.ytCurrentIndex = 0;
+            }
+
+            const currentItem = playlist[bgState.ytCurrentIndex];
+            if (!currentItem || !currentItem.id) return;
+
+            if (!ytApiReady || !window.YT || !window.YT.Player) {
+                setTimeout(() => loadYouTubePlayer(), 300);
+                return;
+            }
+
+            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                try {
+                    ytPlayer.loadVideoById(currentItem.id);
+                    if (bgState.ytMute) ytPlayer.mute(); else ytPlayer.unMute();
+                    ytPlayer.setVolume(bgState.ytVolume ?? 50);
+                    ytPlayer.playVideo();
+                } catch (e) {}
+                return;
+            }
+
+            const container = document.getElementById('yt-player-container');
+            if (!container) return;
+
+            try {
+                ytPlayer = new YT.Player('yt-player-container', {
+                    videoId: currentItem.id,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        disablekb: 1,
+                        fs: 0,
+                        iv_load_policy: 3,
+                        modestbranding: 1,
+                        rel: 0,
+                        showinfo: 0,
+                        mute: bgState.ytMute ? 1 : 0,
+                        loop: 0
+                    },
+                    events: {
+                        onReady: (event) => {
+                            event.target.playVideo();
+                            if (bgState.ytMute) event.target.mute(); else event.target.unMute();
+                            event.target.setVolume(bgState.ytVolume ?? 50);
+                        },
+                        onStateChange: (event) => {
+                            if (event.data === YT.PlayerState.ENDED) {
+                                playNextYouTubeVideo();
+                            }
+                        },
+                        onError: (event) => {
+                            console.warn('YouTube Player error code:', event.data);
+                            setTimeout(() => playNextYouTubeVideo(), 1500);
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('YT.Player create error:', err);
+            }
+        }
+
+        function changeBgType(newType) {
+            bgState.type = newType;
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+        }
+
         async function handleBackgroundFile(input) {
             const file = input.files && input.files[0];
             if (!file) return;
@@ -1984,7 +2201,7 @@
             const isVideo = file.type.startsWith('video/');
             const dataUrl = await fileToDataUrl(file);
 
-            bgState.type = isVideo ? 'video' : 'image';
+            bgState.type = isVideo ? 'file_video' : 'image';
             bgState.fileName = file.name || (isVideo ? 'video.mp4' : 'image.png');
             currentBgDataUrl = dataUrl;
 
@@ -2014,13 +2231,72 @@
             if (key === 'darken') bgState.darken = Math.max(0, Math.min(90, Number(val) || 0));
             if (key === 'mute') bgState.mute = !!val;
             if (key === 'volume') bgState.volume = Math.max(0, Math.min(100, Number(val) || 50));
+            if (key === 'ytMute') {
+                bgState.ytMute = !!val;
+                if (ytPlayer && typeof ytPlayer.mute === 'function') {
+                    if (bgState.ytMute) ytPlayer.mute(); else ytPlayer.unMute();
+                }
+            }
+            if (key === 'ytVolume') {
+                bgState.ytVolume = Math.max(0, Math.min(100, Number(val) || 50));
+                if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+                    ytPlayer.setVolume(bgState.ytVolume);
+                }
+            }
 
             applyBackground();
             syncBgControls();
             debounceSave();
         }
 
+        function renderYouTubePlaylistUI() {
+            const listEl = document.getElementById('yt-playlist-items');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            const playlist = bgState.ytPlaylist || [];
+            if (!playlist.length) {
+                listEl.innerHTML = '<div class="text-[9px] text-white/50 italic py-1">Henüz YouTube videosu eklenmedi.</div>';
+                return;
+            }
+
+            playlist.forEach((item, index) => {
+                const isCurrent = (bgState.ytCurrentIndex || 0) === index;
+                const row = document.createElement('div');
+                row.className = `flex items-center justify-between gap-2 p-1.5 rounded text-[9px] ${isCurrent ? 'bg-yellow-500/20 border border-yellow-500/40' : 'bg-black/30'}`;
+                row.innerHTML = `
+                    <div class="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer" onclick="playYouTubeVideoAtIndex(${index})">
+                        <span class="font-bold ${isCurrent ? 'text-yellow-400' : 'text-white/60'}">${index + 1}.</span>
+                        <span class="truncate font-mono ${isCurrent ? 'text-yellow-300 font-bold' : 'text-white/80'}">${escapeHtml(item.id)}</span>
+                        ${isCurrent ? '<span class="text-[8px] bg-yellow-400 text-black font-black px-1 rounded">ÇALIYOR</span>' : ''}
+                    </div>
+                    <button onclick="removeYouTubeVideo(${index})" class="text-red-400 hover:text-red-300 px-1 font-bold">✕</button>
+                `;
+                listEl.appendChild(row);
+            });
+
+            const ytMute = document.getElementById('yt-video-mute');
+            if (ytMute) ytMute.checked = !!bgState.ytMute;
+
+            const ytVolVal = document.getElementById('yt-video-vol-val');
+            const ytVolSlider = document.getElementById('yt-video-vol-slider');
+            if (ytVolVal) ytVolVal.textContent = (bgState.ytVolume ?? 50) + '%';
+            if (ytVolSlider) ytVolSlider.value = String(bgState.ytVolume ?? 50);
+        }
+
         function syncBgControls() {
+            const typeSelect = document.getElementById('bg-type-select');
+            if (typeSelect) typeSelect.value = bgState.type || 'none';
+
+            const fileWrap = document.getElementById('bg-file-wrap');
+            if (fileWrap) {
+                fileWrap.style.display = (bgState.type === 'image' || bgState.type === 'file_video') ? 'block' : 'none';
+            }
+
+            const ytWrap = document.getElementById('bg-youtube-wrap');
+            if (ytWrap) {
+                ytWrap.style.display = bgState.type === 'youtube' ? 'block' : 'none';
+            }
+
             const blurVal = document.getElementById('bg-blur-val');
             const blurSlider = document.getElementById('bg-blur-slider');
             if (blurVal) blurVal.textContent = (bgState.blur || 0) + 'px';
@@ -2038,10 +2314,12 @@
 
             const info = document.getElementById('bg-file-info');
             if (info) {
-                if (bgState.type === 'video') {
+                if (bgState.type === 'file_video') {
                     info.textContent = `🎥 Video: ${bgState.fileName || 'Yüklü'}`;
                 } else if (bgState.type === 'image') {
                     info.textContent = `🖼️ Görsel/GIF: ${bgState.fileName || 'Yüklü'}`;
+                } else if (bgState.type === 'youtube') {
+                    info.textContent = `▶️ YouTube Listesi (${(bgState.ytPlaylist || []).length} video)`;
                 } else {
                     info.textContent = 'Varsayılan Gradient Arka Plan';
                 }
@@ -2049,7 +2327,7 @@
 
             const vidControls = document.getElementById('bg-video-controls');
             if (vidControls) {
-                vidControls.style.display = bgState.type === 'video' ? 'block' : 'none';
+                vidControls.style.display = bgState.type === 'file_video' ? 'block' : 'none';
             }
 
             const vidMute = document.getElementById('bg-video-mute');
@@ -2059,6 +2337,8 @@
             const vidVolSlider = document.getElementById('bg-video-vol-slider');
             if (vidVolVal) vidVolVal.textContent = (bgState.volume ?? 50) + '%';
             if (vidVolSlider) vidVolSlider.value = String(bgState.volume ?? 50);
+
+            renderYouTubePlaylistUI();
         }
 
         function applyBackground() {
@@ -2066,6 +2346,7 @@
             const overlay = document.getElementById('app-background-overlay');
             const vid = document.getElementById('bg-video-el');
             const img = document.getElementById('bg-image-el');
+            const ytWrap = document.getElementById('yt-player-wrap');
 
             if (!layer || !overlay || !vid || !img) return;
 
@@ -2073,21 +2354,33 @@
             layer.style.opacity = String((Number(bgState.opacity ?? 100) / 100));
             overlay.style.background = `rgba(0, 0, 0, ${Number(bgState.darken ?? 40) / 100})`;
 
-            if (bgState.type === 'video' && currentBgDataUrl) {
+            const type = bgState.type || 'none';
+
+            if (type === 'file_video' && currentBgDataUrl) {
+                if (ytWrap) ytWrap.style.display = 'none';
+                if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') { try { ytPlayer.pauseVideo(); } catch(e){} }
                 img.style.display = 'none';
                 vid.style.display = 'block';
-                if (vid.src !== currentBgDataUrl) {
-                    vid.src = currentBgDataUrl;
-                }
+                if (vid.src !== currentBgDataUrl) vid.src = currentBgDataUrl;
                 vid.muted = !!bgState.mute;
                 vid.volume = Math.max(0, Math.min(1, Number(bgState.volume ?? 50) / 100));
                 vid.play().catch(() => {});
-            } else if (bgState.type === 'image' && currentBgDataUrl) {
+            } else if (type === 'image' && currentBgDataUrl) {
+                if (ytWrap) ytWrap.style.display = 'none';
+                if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') { try { ytPlayer.pauseVideo(); } catch(e){} }
                 try { vid.pause(); } catch(e){}
                 vid.style.display = 'none';
                 img.style.display = 'block';
                 img.style.backgroundImage = `url("${currentBgDataUrl}")`;
+            } else if (type === 'youtube' && Array.isArray(bgState.ytPlaylist) && bgState.ytPlaylist.length > 0) {
+                try { vid.pause(); } catch(e){}
+                vid.style.display = 'none';
+                img.style.display = 'none';
+                if (ytWrap) ytWrap.style.display = 'block';
+                loadYouTubePlayer();
             } else {
+                if (ytWrap) ytWrap.style.display = 'none';
+                if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') { try { ytPlayer.pauseVideo(); } catch(e){} }
                 try { vid.pause(); } catch(e){}
                 vid.style.display = 'none';
                 img.style.display = 'none';
