@@ -3340,13 +3340,31 @@
 
             socket.on('connection_state', (data) => {
                 if (!data) return;
+                const btn = document.getElementById('btn-connect');
                 if (data.connected) {
+                    isConnected = true;
+                    isConnecting = false;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'BAĞLANTIYI KES';
+                        btn.className = 'btn btn-danger flex-1';
+                    }
                     updateConnectionStatus('status-success', 'Bağlandı');
-                } else if (data.error) {
-                    updateConnectionStatus('status-error', 'Hata');
-                    showToast(data.error);
                 } else {
-                    updateConnectionStatus('status-none', 'Bağlantı Yok');
+                    isConnected = false;
+                    isConnecting = false;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'BAĞLAN';
+                        btn.className = 'btn btn-primary flex-1';
+                    }
+                    if (manualDisconnect) {
+                        updateConnectionStatus('status-none', 'Bağlantı Yok');
+                    } else if (data.error) {
+                        updateConnectionStatus('status-pending', 'Bağlanılamadı (5s Sonra Tekrar Denenecek)');
+                    } else {
+                        updateConnectionStatus('status-pending', 'Yeniden Deneniyor (5s)...');
+                    }
                     stopLeaderAnthem(true);
                 }
             });
@@ -3632,9 +3650,12 @@
             playLeaderAnthemIfNeeded();
 
             startAutoReconnectLoop();
-            if (tiktokTargetUsername && !manualDisconnect) {
-                connectTikTok(true);
-            }
+            setTimeout(() => {
+                if (tiktokTargetUsername && !manualDisconnect && !isConnected) {
+                    updateConnectionStatus('status-pending', 'Otomatik Bağlanıyor...');
+                    connectTikTok(true);
+                }
+            }, 5000);
         }
 
         window.addEventListener('beforeunload', saveStateNow);
