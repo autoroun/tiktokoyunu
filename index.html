@@ -3719,11 +3719,7 @@
         }
 
         function playLeaderAnthemIfNeeded(forceRestart = false, scoredIndex = null) {
-            if (leaderAnthemContinuous) {
-                checkAndUpdateLeaderAnthemContinuous(forceRestart);
-                return;
-            }
-            const leader = getAnthemTarget(scoredIndex);
+            const leader = getTopScoringTeam();
             if (!leader || !leader.anthem) {
                 stopLeaderAnthem(true);
                 return;
@@ -3731,11 +3727,8 @@
 
             const leaderId = Number(leader.id || 0) || 0;
             const sameLeader = lastLeaderTeamId === leaderId;
-            if (sameLeader && leaderAnthemAudio && !forceRestart) {
+            if (sameLeader && leaderAnthemAudio && !leaderAnthemAudio.paused && !forceRestart) {
                 syncAnthemControls();
-                if (leaderAnthemAudio.paused) {
-                    leaderAnthemAudio.play().catch(() => {});
-                }
                 return;
             }
 
@@ -3753,7 +3746,8 @@
                 leaderAnthemAudio = audio;
                 const playPromise = audio.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
-                    playPromise.catch(() => {
+                    playPromise.catch((err) => {
+                        if (err && err.name === 'AbortError') return;
                         showToast('Marş için ses oynatma izni gerekiyor. Ekrana bir kez tıklayıp tekrar deneyin.');
                     });
                 }
@@ -3763,7 +3757,6 @@
         }
 
         function checkAndUpdateLeaderAnthemContinuous(forceRestart = false) {
-            if (!leaderAnthemContinuous) return;
             const leader = getTopScoringTeam();
             if (!leader || !leader.anthem) {
                 if (leaderAnthemAudio) stopLeaderAnthem(false, false);
@@ -3773,14 +3766,13 @@
             const leaderId = Number(leader.id || 0) || 0;
             const sameLeader = lastLeaderTeamId === leaderId;
 
-            if (sameLeader && leaderAnthemAudio && !forceRestart) {
+            // Birinci değişmediği sürece şarkı ASLA değişmesin, kesilmesin, yeniden başlamasın!
+            if (sameLeader && leaderAnthemAudio && !leaderAnthemAudio.paused && !forceRestart) {
                 syncAnthemControls();
-                if (leaderAnthemAudio.paused) {
-                    leaderAnthemAudio.play().catch(() => {});
-                }
                 return;
             }
 
+            // Sadece yeni bir takım 1. sırayı geçtiğinde yeni liderin şarkısına geç!
             playSpecificAnthem(leader, true);
         }
 
@@ -4274,50 +4266,25 @@
             } catch (e) {}
         }
 
-        function playTeamAnthem(index, forceRestart = true) {
-            if (!teams[index]) return;
-            const team = teams[index];
-
-            if (anthemResumeTimer) {
-                clearTimeout(anthemResumeTimer);
-                anthemResumeTimer = null;
-            }
-
+        function playTeamAnthem(index, forceRestart = false) {
             pauseGlobalBgMusic();
 
-            if (leaderAnthemContinuous) {
-                const leader = getTopScoringTeam();
-                if (!leader || !leader.anthem) return;
-
-                const leaderId = Number(leader.id || 0) || 0;
-                // Birinciye geçmedikleri sürece 1. takımın şarkısı ASLA değişmesin & kesilmesin!
-                if (lastLeaderTeamId === leaderId && leaderAnthemAudio && !leaderAnthemAudio.paused) {
-                    return;
-                }
-                // Sadece yeni bir takım 1. sırayı geçtiğinde veya marş çalmıyorsa yeni liderin şarkısına geç!
-                playSpecificAnthem(leader, true);
-                return;
-            }
-
-            const delayMs = (Number(bgMusicState.resumeDelaySec) || 60) * 1000;
-            if (delayMs > 0) {
-                anthemResumeTimer = setTimeout(() => {
-                    anthemResumeTimer = null;
-                    stopLeaderAnthem(false, true);
-                }, delayMs);
-            }
-
-            if (!team.anthem) {
-                const leader = getTopScoringTeam();
-                if (leader && leader.anthem) {
-                    playSpecificAnthem(leader, forceRestart);
-                } else {
-                    stopLeaderAnthem(true, true);
+            const leader = getTopScoringTeam();
+            if (!leader || !leader.anthem) {
+                if (teams[index] && teams[index].anthem) {
+                    playSpecificAnthem(teams[index], false);
                 }
                 return;
             }
 
-            playSpecificAnthem(team, forceRestart);
+            const leaderId = Number(leader.id || 0) || 0;
+            // Birinciye geçmedikleri sürece 1. takımın şarkısı ASLA değişmesin, kesilmesin & yeniden başlamasın!
+            if (lastLeaderTeamId === leaderId && leaderAnthemAudio && !leaderAnthemAudio.paused) {
+                return;
+            }
+
+            // Sadece yeni bir takım 1. sırayı geçtiğinde veya marş çalmıyorsa yeni liderin şarkısına geç!
+            playSpecificAnthem(leader, true);
         }
 
         function playSpecificAnthem(team, forceRestart = true) {
