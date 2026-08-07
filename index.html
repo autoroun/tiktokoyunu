@@ -1030,29 +1030,25 @@
         </div>
 
         <div class="setting-section border border-yellow-500/30" style="margin-top:16px;">
-            <h3 class="text-[10px] font-bold text-yellow-400 mb-3">🔔 GENEL HEDİYE / GOL EFEKT SESİ</h3>
+            <h3 class="text-[10px] font-bold text-yellow-400 mb-3">🔔 GENEL HEDİYE / GOL EFEKT SESLERİ</h3>
             <div class="flex flex-col gap-3">
-                <div class="mini-help">Herhangi bir takıma hediye/puan geldiğinde çalan genel efekt sesidir. (Tüm takımlar için ortaktır).</div>
+                <div class="mini-help">Herhangi bir takıma hediye/puan geldiğinde rastgele (random) çalınacak efekt sesleridir. Birden fazla ses ekleyebilirsiniz.</div>
 
                 <div class="flex items-center gap-2">
                     <input id="gift-sfx-enabled" type="checkbox" checked onchange="updateGiftSfxParam('enabled', this.checked)">
-                    <label for="gift-sfx-enabled" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Efekt Sesini Etkinleştir</label>
+                    <label for="gift-sfx-enabled" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Efekt Seslerini Etkinleştir</label>
                 </div>
 
                 <div>
-                    <label class="text-[9px] text-white/60 font-bold block mb-1">EFEKT SESİ DOSYASI YÜKLE (MP3 / WAV)</label>
-                    <input type="file" id="gift-sfx-file" accept="audio/*" onchange="handleGiftSfxChange(this)" style="width:100%;font-size:10px;">
-                    <div id="gift-sfx-file-info" class="mini-help mt-1 text-yellow-300 font-bold">Varsayılan Şimşek / Sentez Sesi</div>
+                    <label class="text-[9px] text-white/60 font-bold block mb-1">+ YENİ EFEKT SESLERİ EKLE (MP3 / WAV)</label>
+                    <input type="file" id="gift-sfx-file" accept="audio/*" multiple onchange="addGiftSfxFiles(this)" style="width:100%;font-size:10px;">
                 </div>
 
-                <div class="flex gap-2">
-                    <button type="button" onclick="previewGiftSfx()" class="btn btn-accent text-[9px] flex-1">▶️ EFEKT SESİNİ DİNLE</button>
-                    <button type="button" onclick="removeGiftSfx()" class="btn btn-danger text-[9px]">🗑️ SİL</button>
-                </div>
+                <div id="gift-sfx-list-items" class="flex flex-col gap-1 max-h-[160px] overflow-y-auto my-1"></div>
 
                 <div class="flex items-center gap-2 mt-1">
                     <input id="gift-sfx-mute" type="checkbox" onchange="updateGiftSfxParam('mute', this.checked)">
-                    <label for="gift-sfx-mute" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Efekt Sesini Sustur (Mute)</label>
+                    <label for="gift-sfx-mute" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Efekt Seslerini Sustur (Mute)</label>
                 </div>
 
                 <div>
@@ -1063,6 +1059,14 @@
                     <input id="gift-sfx-vol-slider" type="range" min="0" max="100" value="80" oninput="updateGiftSfxParam('volume', this.value)">
                 </div>
             </div>
+        </div>
+
+        <div class="setting-section border border-red-500/40" style="margin-top:16px;">
+            <h3 class="text-[10px] font-bold text-red-400 mb-2">⚽ MAÇ & SKOR YÖNETİMİ</h3>
+            <button onclick="resetAllScores()" class="btn btn-danger w-full text-[10px] py-2.5 font-extrabold flex items-center justify-center gap-2">
+                🔄 TÜM SKORLARI / PUANLARI SIFIRLA
+            </button>
+            <div class="mini-help text-center mt-1">Tüm takımların puanlarını 0 olarak sıfırlar ve maçı yeniden başlatır.</div>
         </div>
 
         <div id="team-editor-list"></div>
@@ -1299,7 +1303,9 @@
                 if (Array.isArray(settings.teams)) {
                     teams = [];
                     for (let i = 0; i < teamCount; i++) {
-                        const t = normalizeTeam(settings.teams[i], i); t.score = 0; teams.push(t);
+                        const t = normalizeTeam(settings.teams[i], i);
+                        t.score = settings.teams[i] ? (Number(settings.teams[i].score || 0) || 0) : 0;
+                        teams.push(t);
                     }
                 }
                 if (Array.isArray(settings.giftCatalog)) giftCatalog = settings.giftCatalog;
@@ -1342,8 +1348,12 @@
                 }
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
-                const giftSfx = await idbGet('global:gift-sfx');
-                if (giftSfx) assets['global:gift-sfx'] = giftSfx;
+                if (Array.isArray(giftSfxState.sfxList)) {
+                    for (const item of giftSfxState.sfxList) {
+                        const sfxData = await idbGet(`global:gift-sfx:${item.id}`);
+                        if (sfxData) assets[`global:gift-sfx:${item.id}`] = sfxData;
+                    }
+                }
                 const bg = await idbGet('global:background');
                 if (bg) assets['global:background'] = bg;
 
@@ -1446,8 +1456,12 @@
                 // Reminder SFX
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
-                const giftSfx = await idbGet('global:gift-sfx');
-                if (giftSfx) assets['global:gift-sfx'] = giftSfx;
+                if (Array.isArray(giftSfxState.sfxList)) {
+                    for (const item of giftSfxState.sfxList) {
+                        const sfxData = await idbGet(`global:gift-sfx:${item.id}`);
+                        if (sfxData) assets[`global:gift-sfx:${item.id}`] = sfxData;
+                    }
+                }
                 const bgAsset = await idbGet('global:background');
                 if (bgAsset) assets['global:background'] = bgAsset;
 
@@ -1588,9 +1602,9 @@
             enabled: true,
             mute: false,
             volume: 80,
-            sfxAssetKey: 'global:gift-sfx'
+            sfxList: []
         };
-        let giftSfxDataUrl = null;
+        let loadedGiftSfxMap = new Map();
         let currentBgDataUrl = null;
 
         let audioUnlockCtx = null;
@@ -1800,6 +1814,14 @@
                 }
             }
 
+            loadedGiftSfxMap.clear();
+            if (Array.isArray(giftSfxState.sfxList)) {
+                for (const item of giftSfxState.sfxList) {
+                    const data = await idbGet(`global:gift-sfx:${item.id}`);
+                    if (data) loadedGiftSfxMap.set(item.id, data);
+                }
+            }
+
             const bgData = await idbGet('global:background');
             if (bgData) {
                 currentBgDataUrl = bgData;
@@ -1852,7 +1874,7 @@
                 teams = [];
                 for (let i = 0; i < teamCount; i++) {
                     const restoredTeam = normalizeTeam(savedTeams[i], i);
-                    restoredTeam.score = 0;
+                    restoredTeam.score = savedTeams[i] ? (Number(savedTeams[i].score || 0) || 0) : 0;
                     teams.push(restoredTeam);
                 }
                 giftCatalog = Array.isArray(state.giftCatalog) ? state.giftCatalog : [];
@@ -2830,10 +2852,28 @@
             if (volVal) volVal.textContent = (giftSfxState.volume ?? 80) + '%';
             if (volSlider) volSlider.value = String(giftSfxState.volume ?? 80);
 
-            const fileInfo = document.getElementById('gift-sfx-file-info');
-            if (fileInfo) {
-                fileInfo.textContent = giftSfxDataUrl ? '🎵 Özel Efekt Sesi Yüklü' : 'Varsayılan Şimşek / Sentez Sesi';
+            const listEl = document.getElementById('gift-sfx-list-items');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            const list = giftSfxState.sfxList || [];
+            if (!list.length) {
+                listEl.innerHTML = '<div class="text-[9px] text-white/50 italic py-1">Henüz özel ses eklenmedi. (Varsayılan sentez ses çalışır).</div>';
+                return;
             }
+
+            list.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-2 p-1.5 rounded text-[9px] bg-black/40 border border-yellow-500/20';
+                row.innerHTML = `
+                    <span class="truncate font-mono text-white/90 flex-1">${index + 1}. ${escapeHtml(item.name)}</span>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="previewGiftSfxItem('${item.id}')" class="btn btn-secondary" style="font-size:8px;padding:2px 6px;">▶️</button>
+                        <button type="button" onclick="removeGiftSfxItem('${item.id}')" class="text-red-400 hover:text-red-300 font-bold px-1">✕</button>
+                    </div>
+                `;
+                listEl.appendChild(row);
+            });
         }
 
         function updateGiftSfxParam(key, val) {
@@ -2845,45 +2885,75 @@
             debounceSave();
         }
 
-        async function handleGiftSfxChange(input) {
-            const file = input.files && input.files[0];
-            if (!file) return;
-            const dataUrl = await fileToDataUrl(file);
-            await idbSet('global:gift-sfx', dataUrl);
-            giftSfxDataUrl = dataUrl;
+        async function addGiftSfxFiles(input) {
+            const files = input.files;
+            if (!files || !files.length) return;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const sfxId = 'sfx_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                const dataUrl = await fileToDataUrl(file);
+                await idbSet(`global:gift-sfx:${sfxId}`, dataUrl);
+                loadedGiftSfxMap.set(sfxId, dataUrl);
+                if (!Array.isArray(giftSfxState.sfxList)) giftSfxState.sfxList = [];
+                giftSfxState.sfxList.push({ id: sfxId, name: file.name || `Efekt ${giftSfxState.sfxList.length + 1}` });
+            }
+
+            input.value = '';
             syncGiftSfxControls();
             debounceSave();
-            showToast('Genel Hediye / Gol efekt sesi yüklendi. 🔔');
+            showToast(`${files.length} adet gol/hediye efekt sesi eklendi! 🔔`);
         }
 
-        async function removeGiftSfx() {
-            await idbDel('global:gift-sfx');
-            giftSfxDataUrl = null;
-            const input = document.getElementById('gift-sfx-file');
-            if (input) input.value = '';
+        async function removeGiftSfxItem(sfxId) {
+            await idbDel(`global:gift-sfx:${sfxId}`);
+            loadedGiftSfxMap.delete(sfxId);
+            if (Array.isArray(giftSfxState.sfxList)) {
+                giftSfxState.sfxList = giftSfxState.sfxList.filter(item => item.id !== sfxId);
+            }
             syncGiftSfxControls();
             debounceSave();
-            showToast('Genel Hediye / Gol efekt sesi silindi.');
+            showToast('Efekt sesi silindi.');
         }
 
-        function previewGiftSfx() {
-            playGiftSfx();
-            showToast('Genel hediye efekt sesi çalındı.');
+        function previewGiftSfxItem(sfxId) {
+            const dataUrl = loadedGiftSfxMap.get(sfxId);
+            if (!dataUrl) return;
+            try {
+                const audio = new Audio(dataUrl);
+                audio.volume = Math.max(0, Math.min(1, Number(giftSfxState.volume ?? 80) / 100));
+                audio.play().catch(() => {});
+            } catch (e) {}
         }
 
         function playGiftSfx() {
             if (!giftSfxState.enabled || giftSfxState.mute) return;
             primeAudioPlayback();
 
-            if (giftSfxDataUrl) {
+            const availableAudioUrls = Array.from(loadedGiftSfxMap.values()).filter(Boolean);
+
+            if (availableAudioUrls.length > 0) {
                 try {
-                    const audio = new Audio(giftSfxDataUrl);
+                    const randomIndex = Math.floor(Math.random() * availableAudioUrls.length);
+                    const chosenDataUrl = availableAudioUrls[randomIndex];
+                    const audio = new Audio(chosenDataUrl);
                     audio.volume = Math.max(0, Math.min(1, Number(giftSfxState.volume ?? 80) / 100));
                     audio.play().catch(() => {});
                 } catch (e) {}
             } else {
                 playSyntheticGoalChime();
             }
+        }
+
+        function resetAllScores() {
+            const confirmed = confirm('Tüm takımların puanları sıfırlanacak. Emin misiniz?');
+            if (!confirmed) return;
+            teams.forEach(t => { t.score = 0; });
+            stopLeaderAnthem(true);
+            renderGame();
+            saveStateNow();
+            debounceSave();
+            showToast('Tüm takımların puanları 0 olarak sıfırlandı! 🔄');
         }
 
         function playSyntheticGoalChime() {
