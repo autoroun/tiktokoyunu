@@ -759,6 +759,13 @@
 </head>
 <body>
 
+    <!-- ── ARKA PLAN KATMANI ────────────────────────────────────── -->
+    <div id="app-background-layer" style="position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none;transition:filter .2s, opacity .2s;">
+        <video id="bg-video-el" loop playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
+        <div id="bg-image-el" style="width:100%;height:100%;background-size:cover;background-position:center;display:none;"></div>
+    </div>
+    <div id="app-background-overlay" style="position:fixed;inset:0;z-index:-1;pointer-events:none;background:rgba(0,0,0,0.4);transition:background .2s;"></div>
+
     <!-- ── GİRİŞ MODAL ────────────────────────────────────────── -->
     <div id="login-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;">
         <div style="background:linear-gradient(145deg,#0a0f1a,#060b14);border:1px solid rgba(0,255,204,.18);border-radius:24px;padding:44px 40px;width:min(420px,94vw);box-shadow:0 0 80px rgba(0,255,204,.06),0 24px 80px rgba(0,0,0,.95);">
@@ -849,6 +856,58 @@
             <div>
                 <label>Puan Yazı Boyutu: <span id="f-val">1.7rem</span></label>
                 <input id="style-score-font" type="range" min="0.7" max="3.2" step="0.1" value="1.7" oninput="updateStyle('score-font', this.value + 'rem', 'f-val')">
+            </div>
+        </div>
+
+        <div class="setting-section border border-purple-500/30" style="margin-top:16px;">
+            <h3 class="text-[10px] font-bold text-purple-400 mb-3">🎨 ARKA PLAN (Görsel / GIF / Video)</h3>
+            <div class="flex flex-col gap-3">
+                <div>
+                    <label class="text-[9px] text-white/60 font-bold block mb-1">ARKA PLAN YÜKLE (Görsel, GIF veya MP4 Video)</label>
+                    <input type="file" id="bg-file-input" accept="image/*,video/*" onchange="handleBackgroundFile(this)" style="width:100%;font-size:10px;">
+                    <div id="bg-file-info" class="mini-help mt-1 text-purple-300 font-bold">Varsayılan Gradient Arka Plan</div>
+                </div>
+
+                <button onclick="clearBackground()" class="btn btn-danger text-[9px] w-full">ARKA PLANI KALDIR (Varsayılana Dön)</button>
+
+                <div>
+                    <div class="flex justify-between items-center text-[9px] mb-1">
+                        <label>Bulanıklık (Blur):</label>
+                        <span id="bg-blur-val" class="font-bold text-purple-300">0px</span>
+                    </div>
+                    <input id="bg-blur-slider" type="range" min="0" max="30" value="0" oninput="updateBgParam('blur', this.value)">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center text-[9px] mb-1">
+                        <label>Arka Plan Opaklığı:</label>
+                        <span id="bg-opacity-val" class="font-bold text-purple-300">100%</span>
+                    </div>
+                    <input id="bg-opacity-slider" type="range" min="10" max="100" value="100" oninput="updateBgParam('opacity', this.value)">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center text-[9px] mb-1">
+                        <label>Karartma Katmanı (Koyu Filtre):</label>
+                        <span id="bg-darken-val" class="font-bold text-purple-300">40%</span>
+                    </div>
+                    <input id="bg-darken-slider" type="range" min="0" max="90" value="40" oninput="updateBgParam('darken', this.value)">
+                </div>
+
+                <div id="bg-video-controls" style="display:none;background:rgba(0,0,0,0.35);padding:10px;border-radius:10px;border:1px solid rgba(168,85,247,0.3);">
+                    <div class="text-[9px] font-bold text-purple-300 mb-2">🎬 VİDEO SES AYARLARI</div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input id="bg-video-mute" type="checkbox" onchange="updateBgParam('mute', this.checked)">
+                        <label for="bg-video-mute" class="text-[9px] font-bold text-white cursor-pointer">Videoyu Sustur (Mute)</label>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center text-[9px] mb-1">
+                            <label>Video Ses Seviyesi:</label>
+                            <span id="bg-video-vol-val" class="font-bold text-purple-300">50%</span>
+                        </div>
+                        <input id="bg-video-vol-slider" type="range" min="0" max="100" value="50" oninput="updateBgParam('volume', this.value)">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1085,9 +1144,12 @@
                 if (settings.styleState) Object.assign(styleState, settings.styleState);
                 if (settings.reminderState) Object.assign(reminderState, settings.reminderState);
                 if (settings.anthemState) Object.assign(anthemState, settings.anthemState);
+                if (settings.bgState) Object.assign(bgState, settings.bgState);
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 applyGridCols(teamCount);
+                applyBackground();
+                syncBgControls();
             } catch (err) { console.error('applyServerSettings error:', err); }
         }
 
@@ -1117,6 +1179,8 @@
                 }
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
+                const bg = await idbGet('global:background');
+                if (bg) assets['global:background'] = bg;
 
                 const resp = await fetch('/api/account/' + currentToken + '/save', {
                     method: 'POST',
@@ -1209,6 +1273,8 @@
                 // Reminder SFX
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
+                const bgAsset = await idbGet('global:background');
+                if (bgAsset) assets['global:background'] = bgAsset;
 
                 const backup = {
                     version: 2,
@@ -1336,6 +1402,17 @@
             mute: false
         };
 
+        const bgState = {
+            type: 'none',
+            blur: 0,
+            opacity: 100,
+            darken: 40,
+            mute: true,
+            volume: 50,
+            fileName: ''
+        };
+        let currentBgDataUrl = null;
+
         let audioUnlockCtx = null;
         let audioUnlocked = false;
 
@@ -1450,7 +1527,7 @@
         function saveStateNow() {
             try {
                 const state = {
-                    version: 7,
+                    version: 8,
                     teamCount,
                     teams: serializeTeams(),
                     giftCatalog,
@@ -1458,6 +1535,7 @@
                     styleState,
                     reminderState,
                     anthemState,
+                    bgState,
                     techPanelOpen: document.getElementById('tech-panel').style.display !== 'none'
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1539,6 +1617,14 @@
                     reminderSfxAudio = null;
                 }
             }
+
+            const bgData = await idbGet('global:background');
+            if (bgData) {
+                currentBgDataUrl = bgData;
+            } else {
+                currentBgDataUrl = null;
+            }
+            applyBackground();
         }
 
         function getStoredStateObject() {
@@ -1573,6 +1659,7 @@
                 Object.assign(styleState, state.styleState || {});
                 Object.assign(reminderState, state.reminderState || {});
                 Object.assign(anthemState, state.anthemState || {});
+                Object.assign(bgState, state.bgState || {});
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -1608,6 +1695,8 @@
             document.getElementById('anthem-mute').checked = Boolean(anthemState.mute);
             syncReminderLabels();
             syncAnthemControls();
+            syncBgControls();
+            applyBackground();
             document.getElementById('reminder-sfx-val').textContent = reminderSfxUrl ? 'Yüklü' : 'Yok';
 
             const remW = localStorage.getItem('ui_rem_w') || '860';
@@ -1854,6 +1943,124 @@
             document.documentElement.style.setProperty(`--${prop}`, val);
             document.getElementById(labelId).innerText = val;
             debounceSave();
+        }
+
+        // ── ARKA PLAN YÖNETİMİ ──────────────────────────────────────────
+        async function handleBackgroundFile(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            const isVideo = file.type.startsWith('video/');
+            const dataUrl = await fileToDataUrl(file);
+
+            bgState.type = isVideo ? 'video' : 'image';
+            bgState.fileName = file.name || (isVideo ? 'video.mp4' : 'image.png');
+            currentBgDataUrl = dataUrl;
+
+            await idbSet('global:background', dataUrl);
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+            showToast(`Arka plan (${isVideo ? 'Video' : 'Görsel'}) yüklendi. ✅`);
+        }
+
+        async function clearBackground() {
+            bgState.type = 'none';
+            bgState.fileName = '';
+            currentBgDataUrl = null;
+            await idbDel('global:background');
+            const input = document.getElementById('bg-file-input');
+            if (input) input.value = '';
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+            showToast('Arka plan kaldırıldı (Varsayılan gradient aktif).');
+        }
+
+        function updateBgParam(key, val) {
+            if (key === 'blur') bgState.blur = Math.max(0, Math.min(30, Number(val) || 0));
+            if (key === 'opacity') bgState.opacity = Math.max(10, Math.min(100, Number(val) || 100));
+            if (key === 'darken') bgState.darken = Math.max(0, Math.min(90, Number(val) || 0));
+            if (key === 'mute') bgState.mute = !!val;
+            if (key === 'volume') bgState.volume = Math.max(0, Math.min(100, Number(val) || 50));
+
+            applyBackground();
+            syncBgControls();
+            debounceSave();
+        }
+
+        function syncBgControls() {
+            const blurVal = document.getElementById('bg-blur-val');
+            const blurSlider = document.getElementById('bg-blur-slider');
+            if (blurVal) blurVal.textContent = (bgState.blur || 0) + 'px';
+            if (blurSlider) blurSlider.value = String(bgState.blur || 0);
+
+            const opacityVal = document.getElementById('bg-opacity-val');
+            const opacitySlider = document.getElementById('bg-opacity-slider');
+            if (opacityVal) opacityVal.textContent = (bgState.opacity ?? 100) + '%';
+            if (opacitySlider) opacitySlider.value = String(bgState.opacity ?? 100);
+
+            const darkenVal = document.getElementById('bg-darken-val');
+            const darkenSlider = document.getElementById('bg-darken-slider');
+            if (darkenVal) darkenVal.textContent = (bgState.darken ?? 40) + '%';
+            if (darkenSlider) darkenSlider.value = String(bgState.darken ?? 40);
+
+            const info = document.getElementById('bg-file-info');
+            if (info) {
+                if (bgState.type === 'video') {
+                    info.textContent = `🎥 Video: ${bgState.fileName || 'Yüklü'}`;
+                } else if (bgState.type === 'image') {
+                    info.textContent = `🖼️ Görsel/GIF: ${bgState.fileName || 'Yüklü'}`;
+                } else {
+                    info.textContent = 'Varsayılan Gradient Arka Plan';
+                }
+            }
+
+            const vidControls = document.getElementById('bg-video-controls');
+            if (vidControls) {
+                vidControls.style.display = bgState.type === 'video' ? 'block' : 'none';
+            }
+
+            const vidMute = document.getElementById('bg-video-mute');
+            if (vidMute) vidMute.checked = !!bgState.mute;
+
+            const vidVolVal = document.getElementById('bg-video-vol-val');
+            const vidVolSlider = document.getElementById('bg-video-vol-slider');
+            if (vidVolVal) vidVolVal.textContent = (bgState.volume ?? 50) + '%';
+            if (vidVolSlider) vidVolSlider.value = String(bgState.volume ?? 50);
+        }
+
+        function applyBackground() {
+            const layer = document.getElementById('app-background-layer');
+            const overlay = document.getElementById('app-background-overlay');
+            const vid = document.getElementById('bg-video-el');
+            const img = document.getElementById('bg-image-el');
+
+            if (!layer || !overlay || !vid || !img) return;
+
+            layer.style.filter = `blur(${bgState.blur || 0}px)`;
+            layer.style.opacity = String((Number(bgState.opacity ?? 100) / 100));
+            overlay.style.background = `rgba(0, 0, 0, ${Number(bgState.darken ?? 40) / 100})`;
+
+            if (bgState.type === 'video' && currentBgDataUrl) {
+                img.style.display = 'none';
+                vid.style.display = 'block';
+                if (vid.src !== currentBgDataUrl) {
+                    vid.src = currentBgDataUrl;
+                }
+                vid.muted = !!bgState.mute;
+                vid.volume = Math.max(0, Math.min(1, Number(bgState.volume ?? 50) / 100));
+                vid.play().catch(() => {});
+            } else if (bgState.type === 'image' && currentBgDataUrl) {
+                try { vid.pause(); } catch(e){}
+                vid.style.display = 'none';
+                img.style.display = 'block';
+                img.style.backgroundImage = `url("${currentBgDataUrl}")`;
+            } else {
+                try { vid.pause(); } catch(e){}
+                vid.style.display = 'none';
+                img.style.display = 'none';
+            }
         }
 
         function toggleMenu() {
