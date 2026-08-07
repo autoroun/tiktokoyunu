@@ -883,7 +883,7 @@
     <header class="top-hud p-4 flex justify-between items-center border-b border-white/10 bg-black/80 z-[110] backdrop-blur">
         <i class="fas fa-bars settings-trigger" onclick="toggleMenu()"></i>
         <h1 class="neon-title">ŞAMPİYON KİM?</h1>
-        <div id="user-display-header" onclick="toggleMenu()" title="Hesabım • Ayarlar" style="font-size:9px;font-weight:700;color:rgba(0,255,204,.65);min-width:60px;text-align:right;cursor:pointer;line-height:1.4;"></div>
+        <div style="width:24px;"></div>
     </header>
 
     <div class="main-layout">
@@ -1426,8 +1426,6 @@
         }
 
         function updateUserDisplay() {
-            const hdr = document.getElementById('user-display-header');
-            if (hdr) hdr.textContent = currentUsername ? '👤 ' + currentUsername : '';
             const panel = document.getElementById('user-display-panel');
             if (panel) panel.textContent = currentUsername ? '👤 ' + currentUsername : '';
             const urlEl = document.getElementById('account-url-display');
