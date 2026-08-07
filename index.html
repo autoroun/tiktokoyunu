@@ -3958,13 +3958,14 @@
                 connectRequested = false;
                 debounceSave();
                 try { socket.emit('disconnectTikTok'); } catch (err) {}
-                try { socket.disconnect(); } catch (err) {}
                 stopLeaderAnthem(true);
-                socket = null;
                 isConnected = false;
                 isConnecting = false;
-                btn.textContent = 'BAĞLAN';
-                btn.className = 'btn btn-primary flex-1';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'BAĞLAN';
+                    btn.className = 'btn btn-primary flex-1';
+                }
                 updateConnectionStatus('status-none', 'Bağlantı Yok');
                 return;
             }
@@ -3976,125 +3977,117 @@
             updateConnectionStatus('status-pending', 'Bağlanıyor...');
             if (btn) btn.disabled = true;
 
-            if (socket && socket.connected) {
-                socket.emit('setTargetUser', user);
-                socket.emit('requestGiftCatalog', { force: false });
-                return;
-            }
+            if (!socket) {
+                socket = io();
 
-            if (socket) {
-                try { socket.disconnect(); } catch (e) {}
-            }
-
-            socket = io();
-
-            socket.on('connect', () => {
-                isConnected = true;
-                isConnecting = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = 'BAĞLANTIYI KES';
-                    btn.className = 'btn btn-danger flex-1';
-                }
-                updateConnectionStatus('status-success', 'Bağlandı');
-                socket.emit('setTargetUser', user);
-                socket.emit('requestGiftCatalog', { force: false });
-            });
-
-            socket.on('disconnect', () => {
-                isConnected = false;
-                isConnecting = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = 'BAĞLAN';
-                    btn.className = 'btn btn-primary flex-1';
-                }
-                if (manualDisconnect || !connectRequested) {
-                    updateConnectionStatus('status-none', 'Bağlantı Yok');
-                } else {
-                    updateConnectionStatus('status-pending', 'Bağlantı Koptu (5s Yeniden Deneniyor...)');
-                }
-                stopLeaderAnthem(true);
-            });
-
-            socket.on('connect_error', () => {
-                isConnected = false;
-                isConnecting = false;
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = 'BAĞLAN';
-                    btn.className = 'btn btn-primary flex-1';
-                }
-                if (!manualDisconnect) {
-                    updateConnectionStatus('status-pending', 'Yeniden Deneniyor (5s)...');
-                }
-            });
-
-            socket.on('system_msg', (msg) => {
-                if (msg) showToast(msg);
-            });
-
-            socket.on('connection_state', (data) => {
-                if (!data) return;
-                const btn = document.getElementById('btn-connect');
-                if (data.connected) {
-                    isConnected = true;
-                    isConnecting = false;
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = 'BAĞLANTIYI KES';
-                        btn.className = 'btn btn-danger flex-1';
+                socket.on('connect', () => {
+                    const u = (document.getElementById('tiktok-username')?.value || tiktokTargetUsername || '').trim().replace(/^@+/, '');
+                    if (u && connectRequested) {
+                        socket.emit('setTargetUser', u);
+                        socket.emit('requestGiftCatalog', { force: false });
                     }
-                    updateConnectionStatus('status-success', 'Bağlandı');
-                } else {
+                });
+
+                socket.on('disconnect', () => {
                     isConnected = false;
                     isConnecting = false;
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = 'BAĞLAN';
-                        btn.className = 'btn btn-primary flex-1';
+                    const btnEl = document.getElementById('btn-connect');
+                    if (btnEl) {
+                        btnEl.disabled = false;
+                        btnEl.textContent = 'BAĞLAN';
+                        btnEl.className = 'btn btn-primary flex-1';
                     }
-                    if (manualDisconnect) {
+                    if (manualDisconnect || !connectRequested) {
                         updateConnectionStatus('status-none', 'Bağlantı Yok');
-                    } else if (data.error) {
-                        updateConnectionStatus('status-pending', 'Bağlanılamadı (5s Sonra Tekrar Denenecek)');
                     } else {
+                        updateConnectionStatus('status-pending', 'Bağlantı Koptu (5s Yeniden Deneniyor...)');
+                    }
+                    stopLeaderAnthem(true);
+                });
+
+                socket.on('connect_error', () => {
+                    isConnected = false;
+                    isConnecting = false;
+                    const btnEl = document.getElementById('btn-connect');
+                    if (btnEl) {
+                        btnEl.disabled = false;
+                        btnEl.textContent = 'BAĞLAN';
+                        btnEl.className = 'btn btn-primary flex-1';
+                    }
+                    if (!manualDisconnect) {
                         updateConnectionStatus('status-pending', 'Yeniden Deneniyor (5s)...');
                     }
                     stopLeaderAnthem(true);
-                }
-            });
+                });
 
-            socket.on('gift_catalog', (catalog) => {
-                if (!Array.isArray(catalog)) return;
-                giftCatalog = catalog.map(item => ({
-                    id: String(item.id || ''),
-                    name: item.name || `Gift ${item.id}`,
-                    image: item.image || '',
-                    diamondCount: Number(item.diamondCount || 0) || 0
-                })).filter(item => item.id);
-                renderCatalogSummary();
-                renderGiftPickerList();
-                if (!isAuto) debounceSave();
-            });
+                socket.on('system_msg', (msg) => {
+                    if (msg) showToast(msg);
+                });
 
-            socket.on('gift_catalog_error', (message) => {
-                if (message) showToast(message);
-            });
+                socket.on('connection_state', (data) => {
+                    if (!data) return;
+                    const btnEl = document.getElementById('btn-connect');
+                    if (data.connected) {
+                        isConnected = true;
+                        isConnecting = false;
+                        if (btnEl) {
+                            btnEl.disabled = false;
+                            btnEl.textContent = 'BAĞLANTIYI KES';
+                            btnEl.className = 'btn btn-danger flex-1';
+                        }
+                        updateConnectionStatus('status-success', 'Bağlandı');
+                    } else {
+                        isConnected = false;
+                        isConnecting = false;
+                        if (btnEl) {
+                            btnEl.disabled = false;
+                            btnEl.textContent = 'BAĞLAN';
+                            btnEl.className = 'btn btn-primary flex-1';
+                        }
+                        if (manualDisconnect) {
+                            updateConnectionStatus('status-none', 'Bağlantı Yok');
+                        } else if (data.error) {
+                            updateConnectionStatus('status-pending', `Bağlanılamadı (${data.error}) - 5s Sonra Tekrar Denenecek`);
+                        } else {
+                            updateConnectionStatus('status-pending', 'Yeniden Deneniyor (5s)...');
+                        }
+                        stopLeaderAnthem(true);
+                    }
+                });
 
+                socket.on('gift_catalog', (catalog) => {
+                    if (!Array.isArray(catalog)) return;
+                    giftCatalog = catalog.map(item => ({
+                        id: String(item.id || ''),
+                        name: item.name || `Gift ${item.id}`,
+                        image: item.image || '',
+                        diamondCount: Number(item.diamondCount || 0) || 0
+                    })).filter(item => item.id);
+                    renderCatalogSummary();
+                    renderGiftPickerList();
+                    if (!isAuto) debounceSave();
+                });
 
-            socket.on('gift', (data) => {
-                if (!data || !data.giftId) return;
-                const matches = teams
-                    .map((team, index) => ({ team, index }))
-                    .filter(entry => String(entry.team.selectedGiftId) === String(data.giftId));
-                if (!matches.length) return;
+                socket.on('gift_catalog_error', (message) => {
+                    if (message) showToast(message);
+                });
 
-                const totalPoints = Number(data.totalDiamondCount || 0) || (Number(data.diamondCount || 0) * Number(data.repeatCount || 1)) || 0;
-                const fallback = Number(matches[0].team.selectedGiftDiamondCount || 1) || 1;
-                const score = totalPoints > 0 ? totalPoints : (fallback * (Number(data.repeatCount || 1) || 1));
-                matches.forEach(entry => givePoint(entry.index, score));
-            });
+                socket.on('gift', (data) => {
+                    if (!data || !data.giftId) return;
+                    const matches = teams
+                        .map((team, index) => ({ team, index }))
+                        .filter(entry => String(entry.team.selectedGiftId) === String(data.giftId));
+                    if (!matches.length) return;
+
+                    const totalPoints = Number(data.totalDiamondCount || 0) || (Number(data.diamondCount || 0) * Number(data.repeatCount || 1)) || 0;
+                    const fallback = Number(matches[0].team.selectedGiftDiamondCount || 1) || 1;
+                    const score = totalPoints > 0 ? totalPoints : (fallback * (Number(data.repeatCount || 1) || 1));
+                    matches.forEach(entry => givePoint(entry.index, score));
+                });
+            } else if (socket.connected) {
+                socket.emit('setTargetUser', user);
+                socket.emit('requestGiftCatalog', { force: false });
+            }
         }
 
         function requestGiftCatalog(force = false) {
