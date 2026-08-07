@@ -2540,9 +2540,12 @@
                 const div = document.createElement('div');
                 div.className = 'team-editor-card';
                 div.innerHTML = `
-                    <div class="team-editor-head">
+                    <div class="team-editor-head" style="display:flex;justify-content:space-between;align-items:center;">
                         <span>TAKIM SLOT #${index + 1}</span>
-                        <span>HEDİYE İLE OYLANIR</span>
+                        <div class="flex items-center gap-1">
+                            ${index > 0 ? `<button type="button" onclick="moveTeamSlot(${index}, -1)" class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" title="Yukarı Sıraya Taşı">⬆️ YUKARI</button>` : ''}
+                            ${index < teams.length - 1 ? `<button type="button" onclick="moveTeamSlot(${index}, 1)" class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" title="Aşağı Sıraya Taşı">⬇️ AŞAĞI</button>` : ''}
+                        </div>
                     </div>
                     <label>TAKIM İSMİ</label>
                     <input type="text" value="${escapeHtml(team.name)}" onchange="updateTeamData(${index}, 'name', this.value)">
@@ -2679,6 +2682,23 @@
             renderGame();
             renderTeamEditors();
             debounceSave();
+        }
+
+        function moveTeamSlot(index, dir) {
+            const nextIndex = index + dir;
+            if (nextIndex < 0 || nextIndex >= teams.length) return;
+
+            const temp = teams[index];
+            teams[index] = teams[nextIndex];
+            teams[nextIndex] = temp;
+
+            teams.forEach((t, i) => { t.id = i + 1; });
+
+            renderGame();
+            renderTeamEditors();
+            updateCardOrders();
+            saveStateNow();
+            showToast('Takım sıralaması güncellendi! 🔄');
         }
 
         function sendTestGift(index) {
