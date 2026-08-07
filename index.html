@@ -1016,10 +1016,12 @@
                         currentUsername = data.username;
                         if (data.settings) applyServerSettings(data.settings);
                         if (data.assets) await applyServerAssets(data.assets);
+                        // Görselleri IndexedDB'den belleğe yükle (yerel + sunucu)
+                        await hydrateAssets();
                         initSettingsSync();
                         return;
                     }
-                } catch (err) {}
+                } catch (err) { console.error('checkAccountOnLoad error:', err); }
             }
             showLoginModal();
         }
@@ -1055,7 +1057,8 @@
                 if (data.settings && !data.isNew) {
                     applyServerSettings(data.settings);
                     if (data.assets) await applyServerAssets(data.assets);
-                    renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect();
+                    await hydrateAssets();
+                    renderGame(); renderTeamEditors(); applySavedUi(); renderCatalogSummary(); populateTeamCountSelect(); syncAnthemControls();
                 }
                 initSettingsSync();
                 hideLoginModal();
@@ -1088,28 +1091,42 @@
             } catch (err) { console.error('applyServerSettings error:', err); }
         }
 
+        // settings-only hızlı kayıt (otomatik, debounce)
         async function saveToServer(state) {
             if (!currentToken || !state) return;
             try {
-                // IndexedDB'deki görselleri ve sesleri de topla
+                await fetch('/api/account/' + currentToken + '/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: state, sessionId: SESSION_ID })
+                });
+            } catch (err) { console.error('[SAVE] Sunucu kayıt hatası:', err); }
+        }
+
+        // assets dahil tam kayıt (sadece manuel buton ile)
+        async function saveFullToServer(state) {
+            if (!currentToken || !state) return;
+            try {
                 const assets = {};
-                for (let i = 0; i < (state.teamCount || teamCount); i++) {
-                    const logoKey = `team:${i}:logo`;
-                    const anthemKey = `team:${i}:anthem`;
-                    const logo = await idbGet(logoKey);
-                    if (logo) assets[logoKey] = logo;
-                    const anthem = await idbGet(anthemKey);
-                    if (anthem) assets[anthemKey] = anthem;
+                const n = state.teamCount || teamCount;
+                for (let i = 0; i < n; i++) {
+                    const logo = await idbGet(`team:${i}:logo`);
+                    if (logo) assets[`team:${i}:logo`] = logo;
+                    const anthem = await idbGet(`team:${i}:anthem`);
+                    if (anthem) assets[`team:${i}:anthem`] = anthem;
                 }
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
 
-                await fetch('/api/account/' + currentToken + '/save', {
+                const resp = await fetch('/api/account/' + currentToken + '/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ settings: state, assets, sessionId: SESSION_ID })
                 });
-            } catch (err) { console.error('[SAVE] Sunucu kayıt hatası:', err); }
+                if (!resp.ok && resp.status === 413) {
+                    showToast('⚠️ Bazı dosyalar çok büyük, görseller kaydedilemedi.');
+                }
+            } catch (err) { console.error('[SAVE-FULL] Sunucu kayıt hatası:', err); }
         }
 
         async function applyServerAssets(assets) {
@@ -1120,6 +1137,7 @@
                 }
             } catch (err) { console.error('applyServerAssets error:', err); }
         }
+
 
         function initSettingsSync() {
             if (!currentToken || syncSocket) return;
@@ -1148,9 +1166,9 @@
             if (btn) { btn.textContent = '⏳ Kaydediliyor...'; btn.disabled = true; }
             saveStateNow();
             const state = getStoredStateObject();
-            await saveToServer(state);
+            await saveFullToServer(state); // Görseller dahil tam kayıt
             if (btn) { btn.textContent = '✅ Kaydedildi!'; setTimeout(() => { btn.textContent = '💾 TÜM AYARLARI KAYDET'; btn.disabled = false; }, 2200); }
-            showToast('Tüm ayarlar sunucuya kaydedildi! ✅');
+            showToast('Tüm ayarlar (görseller dahil) sunucuya kaydedildi! ✅');
         }
 
         function copyAccountUrl() {
