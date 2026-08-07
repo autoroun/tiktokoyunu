@@ -3572,6 +3572,13 @@
             return topTeams.length === 1 ? topTeams[0] : null;
         }
 
+        // Beraberlikte bile en çok puanlı ilk takımı döndürür (sürekli marş modu için)
+        function getTopScoringTeam() {
+            const topScore = Math.max(0, ...teams.map(team => Number(team?.score || 0) || 0));
+            if (topScore <= 0) return null;
+            return teams.find(team => (Number(team?.score || 0) || 0) === topScore) || null;
+        }
+
         function getAnthemTarget(scoredIndex = null) {
             const topScore = Math.max(0, ...teams.map(team => Number(team?.score || 0) || 0));
             if (topScore <= 0) return null;
@@ -3756,7 +3763,8 @@
         }
 
         function checkAndUpdateLeaderAnthemContinuous(forceRestart = false) {
-            const leader = getLeaderTeam();
+            // Sürekli marş modunda: beraberlik de dahil en yüksek puanlı takımın marşını çal
+            const leader = getTopScoringTeam();
             if (!leader || !leader.anthem) {
                 if (leaderAnthemAudio) stopLeaderAnthem(false, false);
                 return;
