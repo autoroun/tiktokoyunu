@@ -2826,6 +2826,14 @@
             renderTopLikers();
         }
 
+        const FALLBACK_AVATAR_B64 = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIyMCIgZmlsbD0iIzAwZmZjYyIgb3BhY2l0eT0iMC4xNSIvPjxjaXJjbGUgY3k9IjE1IiBjeD0iMjAiIHI9IjciIGZpbGw9IiMwMGZmY2MiLz48cGF0aCBkPSJNOCAzNCBDOCAyNiAzMiAyNiAzMiAzNCIgZmlsbD0iIzAwZmZjYyIvPjwvc3ZnPg==';
+
+        function sanitizeNick(n) {
+            if (!n) return 'İzleyici';
+            const clean = String(n).replace(/[<>"'&]/g, '').trim();
+            return clean || 'İzleyici';
+        }
+
         function sendTestLike(count = 15) {
             const sampleUsers = [
                 { name: 'Ali Esin', id: 'aliesin', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Ali' },
@@ -2865,8 +2873,7 @@
         function handleLikeEvent(data) {
             if (!data) return;
             const id = String(data.uniqueId || data.userId || data.nickname || ('u_' + Math.random().toString(36).slice(2))).trim();
-            const rawNick = String(data.nickname || data.uniqueId || 'İzleyici').replace(/[<>"']/g, '').trim();
-            const nick = rawNick || 'İzleyici';
+            const nick = sanitizeNick(data.nickname || data.uniqueId);
             const img = data.profilePictureUrl ? String(data.profilePictureUrl).trim() : '';
 
             if (!topLikers[id]) {
@@ -2910,8 +2917,10 @@
             }
             container.style.display = 'flex';
             
-            const likersArr = Object.values(topLikers).sort((a, b) => b.likeCount - a.likeCount).slice(0, 12);
-            const fallbackAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="%2300ffcc" opacity="0.15"/><circle cx="20" cy="15" r="7" fill="%2300ffcc"/><path d="M8 34 C8 26 32 26 32 34" fill="%2300ffcc"/></svg>';
+            const likersArr = Object.values(topLikers)
+                .map(l => ({ ...l, nickname: sanitizeNick(l.nickname) }))
+                .sort((a, b) => b.likeCount - a.likeCount)
+                .slice(0, 12);
             
             let html = '<div style="display:flex; align-items:center; justify-content:center; margin-bottom:5px; width:100%;">';
             html += '<span style="color:#00ffcc; font-size:10px; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; text-shadow:0 0 8px rgba(0,255,204,0.5);">🔥 EN ÇOK BEĞENENLER 🔥</span>';
@@ -2924,12 +2933,13 @@
                 if (liker) {
                     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
                     const medalColor = i === 0 ? '#ffe600' : i === 1 ? '#e2e8f0' : i === 2 ? '#fb923c' : '#00ffcc';
-                    const img = liker.profilePictureUrl || fallbackAvatar;
+                    const img = liker.profilePictureUrl || FALLBACK_AVATAR_B64;
+                    const safeName = sanitizeNick(liker.nickname);
                     html += `
                         <div style="width:100%; background:linear-gradient(145deg, rgba(0,255,204,0.08), rgba(0,0,0,0.65)); border:1px solid rgba(0,255,204,0.3); border-radius:8px; padding:4px 2px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.5); backdrop-filter:blur(4px); box-sizing:border-box;">
                             <div style="position:absolute; top:1px; left:3px; font-size:8px; font-weight:900; color:${medalColor}; text-shadow:0 0 5px ${medalColor}88;">${medal}</div>
-                            <img src="${escapeHtml(img)}" style="width:22px; height:22px; border-radius:50%; border:1px solid ${medalColor}; object-fit:cover; margin-top:1px; margin-bottom:1px; box-shadow:0 0 5px rgba(0,255,204,0.3);" onerror="this.src='${fallbackAvatar}'">
-                            <div style="color:#ffffff; font-size:7.5px; font-weight:800; width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px; line-height:1.1;" title="${escapeHtml(liker.nickname)}">${escapeHtml(liker.nickname)}</div>
+                            <img src="${escapeHtml(img)}" style="width:22px; height:22px; border-radius:50%; border:1px solid ${medalColor}; object-fit:cover; margin-top:1px; margin-bottom:1px; box-shadow:0 0 5px rgba(0,255,204,0.3);" onerror="this.onerror=null;this.src='${FALLBACK_AVATAR_B64}'">
+                            <div style="color:#ffffff; font-size:7.5px; font-weight:800; width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 2px; line-height:1.1;" title="${escapeHtml(safeName)}">${escapeHtml(safeName)}</div>
                             <div style="color:#00ffcc; font-size:7.5px; font-weight:900; margin-top:1px; background:rgba(0,255,204,0.12); padding:1px 4px; border-radius:999px; border:1px solid rgba(0,255,204,0.25); line-height:1;">❤️ ${liker.likeCount}</div>
                         </div>
                     `;
