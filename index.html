@@ -2418,6 +2418,7 @@
                     topLikers: { ...topLikers },
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                if (currentToken) debounceSaveToServer(state);
             } catch (err) {
                 console.error('State save error:', err);
             }
@@ -4863,14 +4864,8 @@
                 });
 
                 socket.on('like', (data) => {
-                    if (!data || !data.uniqueId) return;
-                    const id = data.uniqueId;
-                    if (!topLikers[id]) {
-                        topLikers[id] = { nickname: data.nickname || 'İzleyici', profilePictureUrl: data.profilePictureUrl || '', likeCount: 0 };
-                    }
-                    topLikers[id].likeCount += Number(data.likeCount || 1);
-                    renderTopLikers();
-                    debounceSave();
+                    if (!data) return;
+                    handleLikeEvent(data);
                 });
             } else if (socket.connected) {
                 socket.emit('setTargetUser', user);

@@ -48,6 +48,7 @@ function generateToken() {
 }
 
 let tiktokConnection = null;
+let isConnectingTikTok = false;
 let currentTargetUser = '';
 let currentCatalog = [];
 const giftSeen = new Map();
@@ -320,6 +321,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnectTikTok', () => {
+    isConnectingTikTok = false;
     disconnectTikTokConnection('TikTok baglantisi kapatildi.');
   });
 
@@ -327,18 +329,21 @@ io.on('connection', (socket) => {
     const cleanUsername = String(username || '').trim().replace(/^@+/, '');
     if (!cleanUsername) return;
 
-    if (tiktokConnection && currentTargetUser === cleanUsername) {
-      console.log(`[TIKTOK] ${cleanUsername} yayınına zaten bağlı, yeni sekme/cihaz için bağlantı kesilmeden korundu.`);
-      broadcastConnectionInfo(socket);
-      return;
+    if (currentTargetUser.toLowerCase() === cleanUsername.toLowerCase()) {
+      if (tiktokConnection || isConnectingTikTok) {
+        console.log(`[TIKTOK] ${cleanUsername} yayınına zaten bağlı veya bağlanılıyor, bağlantı korundu.`);
+        broadcastConnectionInfo(socket);
+        return;
+      }
     }
 
     if (tiktokConnection) {
-      disconnectTikTokConnection('Eski TikTok baglantisi kapatildi.');
+      disconnectTikTokConnection('Yeni TikTok kullanıcısına bağlanılıyor.');
     }
 
     currentCatalog = [];
     currentTargetUser = cleanUsername;
+    isConnectingTikTok = true;
     giftSeen.clear();
 
     console.log(`TikTok yayinina baglaniliyor: ${cleanUsername}`);
@@ -347,25 +352,27 @@ io.on('connection', (socket) => {
       fetchRoomInfoOnConnect: true
     });
     tiktokConnection = connection;
-    emitConnectionState();
+    emitConnectionState({ targetUser: currentTargetUser, connected: false, pending: true });
     bindTikTokEvents(connection);
 
     connection.connect().then(async (state) => {
+      isConnectingTikTok = false;
       if (tiktokConnection !== connection) return;
       console.log(`Baglanti basarili! Room ID: ${state.roomId}`);
-      io.emit('system_msg', `${cleanUsername} yayinina basariyla baglanildi.`);
+      io.emit('system_msg', `@${cleanUsername} yayınına başarıyla bağlandı.`);
       emitConnectionState({ roomId: state.roomId, connected: true });
       await refreshGiftCatalog(true);
     }).catch((err) => {
+      isConnectingTikTok = false;
       if (tiktokConnection === connection) {
         tiktokConnection = null;
       }
-      console.error('Baglanti Hatasi:', err);
-      socket.emit('system_msg', `Hata: ${err.message}. Lutfen kullanici adini kontrol edin.`);
-      socket.emit('connection_state', {
+      console.error('Baglanti Hatasi:', err?.message || err);
+      socket.emit('system_msg', `Hata: ${err?.message || 'Bağlantı kurulamadı'}. Lütfen kullanıcı adını kontrol edin.`);
+      emitConnectionState({
         targetUser: currentTargetUser,
         connected: false,
-        error: err.message,
+        error: err?.message || 'Bağlantı hatası',
         catalogCount: currentCatalog.length
       });
     });
