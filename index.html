@@ -970,6 +970,10 @@
                     <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">BAĞLAN</button>
                     <div id="connection-log" class="status-none">Bağlantı Yok</div>
                 </div>
+                <label class="flex items-center gap-2 text-[10px] text-blue-300 font-bold cursor-pointer mt-1">
+                    <input id="auto-connect-enabled" type="checkbox" checked onchange="updateAutoConnectSetting(this.checked)">
+                    🔄 Otomatik Yeniden Bağlan (5s)
+                </label>
                 <div class="catalog-actions">
                     <button onclick="requestGiftCatalog(true)" class="btn btn-accent flex-1">TR HEDİYE KATALOĞUNU ÇEK</button>
                     <button onclick="openGiftPicker(-1)" class="btn btn-secondary flex-1">KATALOĞU AÇ</button>
@@ -1289,6 +1293,7 @@
         const SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
         let syncSocket = null;
         let tiktokTargetUsername = '';
+        let autoConnectEnabled = true;
 
         async function checkAccountOnLoad() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -1385,6 +1390,7 @@
                 if (settings.bgState) Object.assign(bgState, settings.bgState);
                 if (settings.giftSfxState) Object.assign(giftSfxState, settings.giftSfxState);
                 if (settings.tiktokUsername) tiktokTargetUsername = settings.tiktokUsername;
+                if (typeof settings.autoConnectEnabled === 'boolean') autoConnectEnabled = settings.autoConnectEnabled;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -1800,6 +1806,7 @@
                     giftCatalog,
                     giftSortOrder,
                     tiktokUsername: tiktokTargetUsername,
+                    autoConnectEnabled,
                     styleState: { ...styleState },
                     reminderState: { ...reminderState },
                     anthemState: { ...anthemState },
@@ -1971,6 +1978,8 @@
         function applySavedUi() {
             const tInput = document.getElementById('tiktok-username');
             if (tInput) tInput.value = tiktokTargetUsername || '';
+            const autoCb = document.getElementById('auto-connect-enabled');
+            if (autoCb) autoCb.checked = autoConnectEnabled !== false;
             const giftSortSelect = document.getElementById('gift-sort-order');
             if (giftSortSelect) giftSortSelect.value = giftSortOrder;
 
@@ -3306,9 +3315,22 @@
             debounceSave();
         }
 
+        function updateAutoConnectSetting(enabled) {
+            autoConnectEnabled = Boolean(enabled);
+            if (!autoConnectEnabled && reconnectTimer) {
+                clearInterval(reconnectTimer);
+                reconnectTimer = null;
+            } else if (autoConnectEnabled) {
+                startAutoReconnectLoop();
+            }
+            debounceSave();
+        }
+
         function startAutoReconnectLoop() {
             if (reconnectTimer) clearInterval(reconnectTimer);
+            if (!autoConnectEnabled) return;
             reconnectTimer = setInterval(() => {
+                if (!autoConnectEnabled) return;
                 const username = tiktokTargetUsername || (document.getElementById('tiktok-username')?.value || '').trim().replace(/^@+/, '');
                 if (username && !isConnected && !manualDisconnect && !isConnecting) {
                     updateConnectionStatus('status-pending', 'Otomatik Bağlanıyor...');
@@ -3713,13 +3735,15 @@
             document.getElementById('tech-panel').style.display = 'none';
             playLeaderAnthemIfNeeded();
 
-            startAutoReconnectLoop();
-            setTimeout(() => {
-                if (tiktokTargetUsername && !manualDisconnect && !isConnected) {
-                    updateConnectionStatus('status-pending', 'Otomatik Bağlanıyor...');
-                    connectTikTok(true);
-                }
-            }, 5000);
+            if (autoConnectEnabled !== false) {
+                startAutoReconnectLoop();
+                setTimeout(() => {
+                    if (autoConnectEnabled !== false && tiktokTargetUsername && !manualDisconnect && !isConnected) {
+                        updateConnectionStatus('status-pending', 'Otomatik Bağlanıyor...');
+                        connectTikTok(true);
+                    }
+                }, 5000);
+            }
         }
 
         window.addEventListener('beforeunload', saveStateNow);
