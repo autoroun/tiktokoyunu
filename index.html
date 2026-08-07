@@ -510,6 +510,12 @@
             transform: translateY(0) scale(1);
         }
 
+        @keyframes popScale {
+            0% { transform: scale(0.3); opacity: 0; }
+            70% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         .reminder-card .title {
             font-family: 'Orbitron', sans-serif;
             font-size: 12px;
@@ -1155,6 +1161,7 @@
                 </div>
                 <div class="flex gap-2 items-center">
                     <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">BAĞLAN</button>
+                    <button type="button" onclick="triggerConnectCountdown()" class="btn btn-secondary" style="font-size:9px;padding:6px 10px;white-space:nowrap;" title="Geri sayımı test et">⏱️ SAYAÇ TEST</button>
                     <div id="connection-log" class="status-none">Bağlantı Yok</div>
                 </div>
                 <label class="flex items-center gap-2 text-[10px] text-blue-300 font-bold cursor-pointer mt-1">
@@ -4243,6 +4250,76 @@
         let reconnectTimer = null;
         let isConnecting = false;
 
+        let countdownTimer = null;
+
+        function triggerConnectCountdown() {
+            let overlay = document.getElementById('connect-countdown-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'connect-countdown-overlay';
+                overlay.style.cssText = 'position:fixed; inset:0; z-index:9999; pointer-events:none; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); opacity:0; transition:opacity 0.3s ease;';
+                document.body.appendChild(overlay);
+            }
+
+            if (countdownTimer) clearInterval(countdownTimer);
+
+            let count = 3;
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+
+            function playChime(freq = 600, type = 'sine') {
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (!AC) return;
+                    const ctx = audioUnlockCtx || new AC();
+                    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                } catch(e) {}
+            }
+
+            function updateDisplay(val) {
+                if (val > 0) {
+                    playChime(600 + (3 - val) * 200);
+                    overlay.innerHTML = `
+                        <div style="font-size:16px; font-weight:900; color:#ffd700; letter-spacing:3px; text-transform:uppercase; margin-bottom:12px; text-shadow:0 0 10px rgba(255,215,0,0.8);">🟢 CANLI YAYIN BAĞLANDI</div>
+                        <div style="font-size:140px; font-weight:900; color:#00ffcc; line-height:1; font-family:'Orbitron', monospace, sans-serif; text-shadow:0 0 40px #00ffcc, 0 0 80px #00ffcc; animation:popScale 0.4s ease;">${val}</div>
+                        <div style="font-size:14px; font-weight:800; color:rgba(255,255,255,0.8); margin-top:16px; letter-spacing:2px; text-transform:uppercase;">BAŞLIYOR...</div>
+                    `;
+                } else {
+                    playChime(1200, 'triangle');
+                    overlay.innerHTML = `
+                        <div style="font-size:48px; font-weight:900; color:#00ffcc; text-shadow:0 0 30px #00ffcc; letter-spacing:2px; animation:popScale 0.4s ease;">🚀 YAYIN AKTİF!</div>
+                    `;
+                }
+            }
+
+            updateDisplay(count);
+
+            countdownTimer = setInterval(() => {
+                count--;
+                if (count >= 0) {
+                    updateDisplay(count);
+                }
+                if (count < 0) {
+                    clearInterval(countdownTimer);
+                    countdownTimer = null;
+                    setTimeout(() => {
+                        overlay.style.opacity = '0';
+                        setTimeout(() => { overlay.style.display = 'none'; }, 300);
+                    }, 600);
+                }
+            }, 900);
+        }
+
         function onTikTokUsernameInput(val) {
             tiktokTargetUsername = String(val || '').trim().replace(/^@+/, '');
             const saveBtn = document.getElementById('btn-save-username');
@@ -4379,6 +4456,7 @@
                     if (!data) return;
                     const btnEl = document.getElementById('btn-connect');
                     if (data.connected) {
+                        const wasConnected = isConnected;
                         isConnected = true;
                         isConnecting = false;
                         if (btnEl) {
@@ -4387,6 +4465,9 @@
                             btnEl.className = 'btn btn-danger flex-1';
                         }
                         updateConnectionStatus('status-success', 'Bağlandı');
+                        if (!wasConnected) {
+                            triggerConnectCountdown();
+                        }
                     } else {
                         isConnected = false;
                         isConnecting = false;
