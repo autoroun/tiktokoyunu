@@ -1167,7 +1167,21 @@
                 </div>
                 <div id="catalog-summary" class="catalog-summary">Katalog bekleniyor.</div>
                 <div class="mini-help">Takım panelindeki hediye inputuna tıklayın. Canlıdan gelen katalog açılır; seçtiğiniz hediye o takıma bağlanır. İzleyici istediği takımın hediyesini göndererek o takıma direkt puan kazandırır.</div>
+        </div>
+
+        <div class="setting-section border border-red-500/30">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-[10px] font-bold text-red-400">🐞 HATA & SİSTEM LOGLARI</h3>
+                <div class="flex gap-1">
+                    <button type="button" onclick="triggerTestError()" class="btn btn-secondary" style="font-size:8px;padding:2px 6px;">🧪 TEST</button>
+                    <button type="button" onclick="copyAppLogs()" class="btn btn-secondary" style="font-size:8px;padding:2px 6px;">📋 KOPYALA</button>
+                    <button type="button" onclick="clearAppLogs()" class="btn btn-danger" style="font-size:8px;padding:2px 6px;">🗑️ TEMİZLE</button>
+                </div>
             </div>
+            <div id="app-log-list" class="max-h-48 overflow-y-auto bg-black/30 p-1.5 rounded border border-white/10">
+                <div class="text-[9px] text-white/40 italic p-2 text-center">Henüz kaydedilmiş hata yok. Sistem stabil. ✅</div>
+            </div>
+            <div class="mini-help mt-1">Oluşan tüm JavaScript, bağlantı ve ses hataları burada anlık olarak kaydedilir.</div>
         </div>
 
         <div class="setting-section">
@@ -1538,6 +1552,71 @@
     <div id="toast-host" class="toast-host"></div>
 
     <script>
+        // ── GLOBAL HATA LOGLAMA SİSTEMİ ──────────────────────────────
+        const appLogs = [];
+
+        function logAppError(source, msg, details = '') {
+            const time = new Date().toLocaleTimeString('tr-TR');
+            const logEntry = { time, source, msg: String(msg || ''), details: String(details || '') };
+            appLogs.unshift(logEntry);
+            if (appLogs.length > 50) appLogs.pop();
+
+            console.error(`[LOG - ${source}] ${time}:`, msg, details);
+
+            if (syncSocket && syncSocket.connected) {
+                try { syncSocket.emit('client_log_error', logEntry); } catch(e) {}
+            }
+            renderLogPanel();
+        }
+
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            logAppError('JS HATA', `${msg} (${url ? url.split('/').pop() : 'script'}:${lineNo}:${columnNo})`, error ? error.stack : '');
+            return false;
+        };
+
+        window.addEventListener('unhandledrejection', function(event) {
+            const reason = event.reason;
+            logAppError('PROMISE HATA', reason ? (reason.message || String(reason)) : 'Bilinmeyen Promise Hatası', reason ? reason.stack : '');
+        });
+
+        function renderLogPanel() {
+            const listEl = document.getElementById('app-log-list');
+            if (!listEl) return;
+            if (appLogs.length === 0) {
+                listEl.innerHTML = '<div class="text-[9px] text-white/40 italic p-2 text-center">Henüz kaydedilmiş hata yok. Sistem stabil. ✅</div>';
+                return;
+            }
+            listEl.innerHTML = appLogs.map(log => `
+                <div class="p-1.5 rounded bg-black/50 border border-red-500/30 text-[9px] font-mono mb-1">
+                    <div class="flex items-center justify-between text-red-400 font-bold mb-0.5">
+                        <span>⚠️ ${escapeHtml(log.source)} [${log.time}]</span>
+                    </div>
+                    <div class="text-white/90 break-all font-sans font-semibold">${escapeHtml(log.msg)}</div>
+                    ${log.details ? `<div class="text-white/50 text-[8px] mt-0.5 break-all max-h-16 overflow-y-auto">${escapeHtml(log.details)}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function clearAppLogs() {
+            appLogs.length = 0;
+            renderLogPanel();
+            showToast('Hata logları temizlendi.');
+        }
+
+        function copyAppLogs() {
+            if (!appLogs.length) { showToast('Kopyalanacak log yok.'); return; }
+            const text = appLogs.map(l => `[${l.time}] ${l.source}: ${l.msg} ${l.details}`).join('\n');
+            navigator.clipboard.writeText(text).then(() => showToast('Loglar panoya kopyalandı! 📋')).catch(() => showToast('Kopyalanamadı.'));
+        }
+
+        function triggerTestError() {
+            try {
+                throw new Error('Test Hatası: Hata loglama sisteminin düzgün çalıştığı doğrulandı! 🐞');
+            } catch(e) {
+                logAppError('TEST HATA', e.message, e.stack);
+            }
+        }
+
         const STORAGE_KEY = 'champion_kim_state_v4';
         const DB_NAME = 'champion-kim-assets';
         const DB_STORE = 'files';

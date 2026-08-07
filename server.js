@@ -15,7 +15,16 @@ const io = new Server(server, {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
-// ── KULLANICI YÖNETİMİ ──────────────────────────────────────────
+// ── GLOBAL HATA YAKALAMA & LOGLAMA ─────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('\n[CRITICAL UNCAUGHT EXCEPTION]', new Date().toISOString());
+  console.error(err?.stack || err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n[UNHANDLED REJECTION]', new Date().toISOString());
+  console.error(reason);
+});
 const USERS_FILE = path.join(__dirname, 'users.json');
 
 function loadUsers() {
@@ -255,6 +264,11 @@ function bindTikTokEvents(connection) {
     disconnectTikTokConnection('Canli yayin sona erdi.');
   });
 
+  connection.on('error', (err) => {
+    console.error('[TIKTOK CONNECTION ERROR]', new Date().toISOString(), err?.message || err);
+    io.emit('system_msg', `TikTok Bağlantı Hatası: ${err?.message || err}`);
+  });
+
   connection.on('disconnected', () => {
     tiktokConnection = null;
     emitConnectionState();
@@ -352,6 +366,10 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('client_log_error', (logEntry) => {
+    console.error('[CLIENT LOG ERROR]', new Date().toISOString(), logEntry);
+  });
+
   socket.on('disconnect', () => {
     console.log('Istemci ayrildi.');
   });
@@ -429,6 +447,11 @@ app.post('/api/account/:token/save', (req, res) => {
   saveUsers(users);
   // Ayni odadaki diger cihazlara gercek zamanli bildir (kaydedeni haric)
   io.to('account:' + token).emit('settings_updated', { settings, assets, sessionId });
+  return res.json({ ok: true });
+});
+
+app.post('/api/log-error', (req, res) => {
+  console.error('[CLIENT HTTP LOG ERROR]', new Date().toISOString(), req.body);
   return res.json({ ok: true });
 });
 
