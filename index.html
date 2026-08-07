@@ -868,6 +868,20 @@
             40%, 60% { transform: translate3d(9px, -7px, 0) rotate(2.5deg); }
         }
 
+        /* Durgun Kart Süzülme / Sallanma Efekti (Idle Float) */
+        @keyframes floatSway {
+            0% { transform: translate3d(0px, 0px, 0) rotate(0deg); }
+            25% { transform: translate3d(-3.5px, 4px, 0) rotate(-0.7deg); }
+            50% { transform: translate3d(4px, -3.5px, 0) rotate(0.6deg); }
+            75% { transform: translate3d(-2.5px, -4.5px, 0) rotate(-0.5deg); }
+            100% { transform: translate3d(0px, 0px, 0) rotate(0deg); }
+        }
+
+        .idle-float-active .team-card:not(.electric-hit-heat-1):not(.electric-hit-heat-2):not(.electric-hit-heat-3):not(.electric-hit-heat-4):not(.chain-shocked):not(.earthquake-shake-intense) {
+            animation: floatSway var(--float-speed, 4.5s) ease-in-out infinite;
+            animation-delay: calc(var(--card-index, 0) * -0.65s);
+        }
+
         header.top-hud {
             margin-top: 44px;
         }
@@ -982,6 +996,20 @@
             <div>
                 <label>Puan Yazı Boyutu: <span id="f-val">1.7rem</span></label>
                 <input id="style-score-font" type="range" min="0.7" max="3.2" step="0.1" value="1.7" oninput="updateStyle('score-font', this.value + 'rem', 'f-val')">
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-white/10 flex flex-col gap-3">
+                <label class="flex items-center gap-2 text-[10px] text-emerald-300 font-bold cursor-pointer">
+                    <input id="style-float-enabled" type="checkbox" checked onchange="updateFloatSetting('enabled', this.checked)">
+                    🌊 Durgun Kart Süzülme / Sallanma Efekti
+                </label>
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] text-white/70 font-bold">Sallanma Hızı (Süre)</span>
+                        <span id="float-speed-val" class="text-[10px] text-emerald-200 font-black">4.5 sn</span>
+                    </div>
+                    <input id="style-float-speed" type="range" min="2" max="8" step="0.5" value="4.5" oninput="updateFloatSetting('speed', this.value)">
+                </div>
             </div>
         </div>
 
@@ -1974,6 +2002,40 @@
             document.getElementById('rem-w').value = remW;
             document.getElementById('rem-h').value = remH;
             applyReminderSize(remW, remH);
+
+            const floatCb = document.getElementById('style-float-enabled');
+            if (floatCb) floatCb.checked = styleState.floatEnabled !== false;
+            const floatSp = document.getElementById('style-float-speed');
+            if (floatSp) floatSp.value = String(styleState.floatSpeed || 4.5);
+            const floatSpVal = document.getElementById('float-speed-val');
+            if (floatSpVal) floatSpVal.textContent = (styleState.floatSpeed || 4.5) + ' sn';
+            applyFloatStyle();
+        }
+
+        function updateFloatSetting(prop, val) {
+            if (prop === 'enabled') {
+                styleState.floatEnabled = Boolean(val);
+            } else if (prop === 'speed') {
+                styleState.floatSpeed = Math.max(1, Math.min(10, Number(val) || 4.5));
+                const label = document.getElementById('float-speed-val');
+                if (label) label.textContent = styleState.floatSpeed + ' sn';
+            }
+            applyFloatStyle();
+            debounceSave();
+        }
+
+        function applyFloatStyle() {
+            const container = document.getElementById('game-container');
+            if (!container) return;
+            const enabled = styleState.floatEnabled !== false;
+            const speed = styleState.floatSpeed || 4.5;
+
+            if (enabled) {
+                container.classList.add('idle-float-active');
+                document.documentElement.style.setProperty('--float-speed', speed + 's');
+            } else {
+                container.classList.remove('idle-float-active');
+            }
         }
 
         function setSliderFromStyle(prop, labelId) {
@@ -2013,6 +2075,7 @@
                 const card = document.createElement('div');
                 card.className = 'team-card';
                 card.id = `card-view-${index}`;
+                card.style.setProperty('--card-index', index);
                 const gift = getSelectedGiftMeta(team);
                 const giftBadge = gift
                     ? `${gift.image ? `<img src="${escapeHtml(gift.image)}" alt="">` : ''}<span>${escapeHtml(gift.name)}${gift.diamondCount ? ` • ${gift.diamondCount}` : ''}</span>`
@@ -2025,6 +2088,7 @@
                 `;
                 container.appendChild(card);
             });
+            applyFloatStyle();
         }
 
         function renderTeamEditors() {
