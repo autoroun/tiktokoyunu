@@ -771,122 +771,101 @@
             .reminder-card .msg { font-size: 18px; }
         }
 
-        /* Lightning & Electric Goal FX - Dynamic Heat Combo System */
+        /* Lightning & Electric Goal FX (Hyper-Realistic Plasma System) */
         #lightning-overlay {
             position: fixed;
             inset: 0;
             pointer-events: none;
             z-index: 9998;
-            transition: background 0.05s ease-out;
+            transition: opacity 0.2s ease-out;
+            opacity: 0;
         }
 
-        .flash-screen {
-            animation: flashBg 0.22s ease-out forwards;
-        }
-
-        @keyframes flashBg {
-            0% { opacity: 1; }
-            100% { opacity: 0; background: transparent; }
-        }
-
-        /* Level 1 - Neon Cyan Hit */
-        .team-card.electric-hit-lvl1 {
-            animation: electricBoostLvl1 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+        /* Heat Level 1 Aura (Electric Cyan-Blue) */
+        .electric-hit-heat-1 {
+            animation: electricBoost1 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
             z-index: 100 !important;
-            border-color: #00ffcc !important;
-            box-shadow: 0 0 30px #00ffcc, 0 0 65px rgba(0,255,204,0.95), inset 0 0 25px rgba(0,255,204,0.7) !important;
+            border-color: #00f3ff !important;
+            box-shadow: 0 0 35px #00f3ff, 0 0 75px rgba(0, 243, 255, 0.95), inset 0 0 25px rgba(0, 243, 255, 0.7) !important;
         }
 
-        @keyframes electricBoostLvl1 {
-            0% { transform: scale(1) translateY(0); }
-            25% { transform: scale(1.20) translateY(-12px) rotate(-1.5deg); filter: brightness(1.6); }
-            50% { transform: scale(1.15) translateY(-8px) rotate(1.5deg); }
-            100% { transform: scale(1) translateY(0); filter: brightness(1); }
-        }
-
-        /* Level 2 - Golden Amber Hit */
-        .team-card.electric-hit-lvl2 {
-            animation: electricBoostLvl2 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+        /* Heat Level 2 Aura (Golden Yellow-Cyan) */
+        .electric-hit-heat-2 {
+            animation: electricBoost2 0.75s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
             z-index: 100 !important;
-            border-color: #ffcc00 !important;
-            box-shadow: 0 0 40px #ffcc00, 0 0 85px rgba(255,204,0,0.95), inset 0 0 30px rgba(255,204,0,0.8) !important;
+            border-color: #ffe600 !important;
+            box-shadow: 0 0 45px #ffe600, 0 0 95px rgba(255, 230, 0, 1), inset 0 0 30px rgba(255, 230, 0, 0.8) !important;
         }
 
-        @keyframes electricBoostLvl2 {
-            0% { transform: scale(1) translateY(0); }
-            25% { transform: scale(1.26) translateY(-16px) rotate(-2.5deg); filter: brightness(1.8); }
-            50% { transform: scale(1.18) translateY(-10px) rotate(2.5deg); }
-            100% { transform: scale(1) translateY(0); filter: brightness(1); }
-        }
-
-        /* Level 3 - Hyper Orange Hit */
-        .team-card.electric-hit-lvl3 {
-            animation: electricBoostLvl3 0.75s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+        /* Heat Level 3 Aura (Fiery Orange Electric) */
+        .electric-hit-heat-3 {
+            animation: electricBoost3 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
             z-index: 100 !important;
-            border-color: #ff4500 !important;
-            box-shadow: 0 0 50px #ff4500, 0 0 100px rgba(255,69,0,1), inset 0 0 35px rgba(255,69,0,0.85) !important;
+            border-color: #ff6600 !important;
+            box-shadow: 0 0 60px #ff6600, 0 0 120px rgba(255, 102, 0, 1), inset 0 0 35px rgba(255, 102, 0, 0.9) !important;
         }
 
-        @keyframes electricBoostLvl3 {
-            0% { transform: scale(1) translateY(0); }
-            25% { transform: scale(1.32) translateY(-20px) rotate(-3.5deg); filter: brightness(2.1); }
-            50% { transform: scale(1.22) translateY(-12px) rotate(3.5deg); }
-            100% { transform: scale(1) translateY(0); filter: brightness(1); }
-        }
-
-        /* Level 4 - SUPERNOVA CRIMSON RED Hit */
-        .team-card.electric-hit-lvl4 {
-            animation: electricBoostLvl4 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+        /* Heat Level 4+ Aura (CRIMSON PLASMA RED OVERDRIVE) */
+        .electric-hit-heat-4 {
+            animation: electricBoostRed 0.85s cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards !important;
             z-index: 100 !important;
             border-color: #ff0033 !important;
-            box-shadow: 0 0 70px #ff0033, 0 0 130px rgba(255,0,51,1), inset 0 0 45px rgba(255,0,51,0.9) !important;
+            box-shadow: 0 0 80px #ff0033, 0 0 150px rgba(255, 0, 51, 1), inset 0 0 50px rgba(255, 0, 51, 1) !important;
         }
 
-        @keyframes electricBoostLvl4 {
+        @keyframes electricBoost1 {
             0% { transform: scale(1) translateY(0); }
-            20% { transform: scale(1.40) translateY(-25px) rotate(-5deg); filter: brightness(2.6); }
-            40% { transform: scale(1.30) translateY(-18px) rotate(5deg); }
-            60% { transform: scale(1.22) translateY(-12px) rotate(-2.5deg); }
+            25% { transform: scale(1.22) translateY(-10px) rotate(-1.5deg); filter: brightness(1.5); }
+            50% { transform: scale(1.18) translateY(-8px) rotate(1.5deg); }
             100% { transform: scale(1) translateY(0); filter: brightness(1); }
         }
 
-        .team-card[class*="electric-hit"]::after {
-            content: "";
-            position: absolute;
-            inset: -8px;
-            border-radius: inherit;
-            border: 3px dashed currentColor;
-            animation: electricSpin 0.35s linear infinite;
-            pointer-events: none;
-            box-shadow: inherit;
+        @keyframes electricBoost2 {
+            0% { transform: scale(1) translateY(0); }
+            25% { transform: scale(1.28) translateY(-14px) rotate(-2deg); filter: brightness(1.7); }
+            50% { transform: scale(1.22) translateY(-10px) rotate(2deg); }
+            100% { transform: scale(1) translateY(0); filter: brightness(1); }
         }
 
-        @keyframes electricSpin {
-            0% { opacity: 1; transform: scale(1) rotate(0deg); }
-            50% { opacity: 0.7; transform: scale(1.05) rotate(180deg); }
-            100% { opacity: 1; transform: scale(1) rotate(360deg); }
+        @keyframes electricBoost3 {
+            0% { transform: scale(1) translateY(0); }
+            25% { transform: scale(1.34) translateY(-18px) rotate(-3deg); filter: brightness(1.9); }
+            50% { transform: scale(1.26) translateY(-12px) rotate(3deg); }
+            100% { transform: scale(1) translateY(0); filter: brightness(1); }
         }
 
-        .team-card.arced-shock {
-            animation: arcShock 0.45s ease-out !important;
+        @keyframes electricBoostRed {
+            0% { transform: scale(1) translateY(0); }
+            20% { transform: scale(1.42) translateY(-22px) rotate(-4deg); filter: brightness(2.3); }
+            40% { transform: scale(1.36) translateY(-16px) rotate(4deg); }
+            60% { transform: scale(1.26) translateY(-10px) rotate(-2deg); }
+            100% { transform: scale(1) translateY(0); filter: brightness(1); }
         }
 
-        @keyframes arcShock {
-            0% { transform: scale(1); }
-            25% { transform: scale(1.10) translate(3px, -3px); filter: brightness(1.4); }
-            50% { transform: scale(1.05) translate(-3px, 3px); }
-            100% { transform: scale(1); filter: brightness(1); }
+        /* Chain shock flare on receiving cards */
+        .team-card.chain-shocked {
+            animation: chainShock 0.4s ease-out forwards !important;
+            border-color: #ff0055 !important;
+            box-shadow: 0 0 30px #ff0055, inset 0 0 15px #ff0055 !important;
         }
 
-        .team-card.earthquake-shake {
-            animation: earthShake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+        @keyframes chainShock {
+            0% { transform: scale(1); filter: brightness(1.8); }
+            30% { transform: scale(1.08) translate3d(-3px, 3px, 0); }
+            60% { transform: scale(1.04) translate3d(3px, -3px, 0); }
+            100% { transform: scale(1) translate3d(0, 0, 0); filter: brightness(1); }
         }
 
-        @keyframes earthShake {
-            10%, 90% { transform: translate3d(-3px, 1px, 0) rotate(-0.8deg); }
-            20%, 80% { transform: translate3d(4px, -2px, 0) rotate(1.2deg); }
-            30%, 50%, 70% { transform: translate3d(-5px, 4px, 0) rotate(-1.2deg); }
-            40%, 60% { transform: translate3d(5px, -3px, 0) rotate(1.2deg); }
+        /* Violent screen earthquake shake */
+        .team-card.earthquake-shake-intense {
+            animation: earthShakeIntense 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes earthShakeIntense {
+            10%, 90% { transform: translate3d(-6px, 3px, 0) rotate(-1.8deg); }
+            20%, 80% { transform: translate3d(7px, -5px, 0) rotate(2.2deg); }
+            30%, 50%, 70% { transform: translate3d(-9px, 7px, 0) rotate(-2.5deg); }
+            40%, 60% { transform: translate3d(9px, -7px, 0) rotate(2.5deg); }
         }
 
         header.top-hud {
@@ -2811,25 +2790,67 @@
             }
         }
 
-        let lastLightningTeamIndex = null;
-        let lastLightningTime = 0;
-        let currentLightningCombo = 1;
+        // ── DİNAMİK ŞİMŞEK & ELEKTRİK MOKAP MOTORU ──────────────────────
+        let currentComboTeamIndex = -1;
+        let currentComboHeat = 0;
+        let lastHitTime = 0;
 
-        function createJaggedPathData(x1, y1, x2, y2, segments = 12, maxJitter = 40) {
-            let cx = x1;
-            let cy = y1;
-            const points = [`${cx.toFixed(1)},${cy.toFixed(1)}`];
+        function getComboParams(targetIndex) {
+            const now = Date.now();
+            if (currentComboTeamIndex === targetIndex && (now - lastHitTime < 4500)) {
+                currentComboHeat = Math.min(6, currentComboHeat + 1);
+            } else {
+                currentComboTeamIndex = targetIndex;
+                currentComboHeat = 1;
+            }
+            lastHitTime = now;
+
+            let primaryColor = '#00f3ff';
+            let secondaryColor = '#0066ff';
+            let flashColor = 'rgba(0, 243, 255, 0.45)';
+
+            if (currentComboHeat === 2) {
+                primaryColor = '#ffe600';
+                secondaryColor = '#ffaa00';
+                flashColor = 'rgba(255, 230, 0, 0.55)';
+            } else if (currentComboHeat === 3) {
+                primaryColor = '#ff6600';
+                secondaryColor = '#ff2200';
+                flashColor = 'rgba(255, 102, 0, 0.65)';
+            } else if (currentComboHeat >= 4) {
+                primaryColor = '#ff0033';
+                secondaryColor = '#990022';
+                flashColor = 'rgba(255, 0, 51, 0.75)';
+            }
+
+            return {
+                heat: currentComboHeat,
+                primaryColor,
+                secondaryColor,
+                flashColor
+            };
+        }
+
+        function createJaggedPath(x1, y1, x2, y2, segments = 16, maxJitter = 40) {
+            let currentX = x1;
+            let currentY = y1;
+            const points = [`${currentX.toFixed(1)},${currentY.toFixed(1)}`];
+
             const dx = (x2 - x1) / segments;
             const dy = (y2 - y1) / segments;
 
             for (let i = 1; i < segments; i++) {
-                const jitterX = (Math.random() - 0.5) * maxJitter;
-                const jitterY = (Math.random() - 0.5) * maxJitter;
-                cx = x1 + dx * i + jitterX;
-                cy = y1 + dy * i + jitterY;
-                points.push(`${cx.toFixed(1)},${cy.toFixed(1)}`);
+                const progress = i / segments;
+                const envelope = Math.sin(progress * Math.PI);
+                const jitterX = (Math.random() - 0.5) * maxJitter * envelope;
+                const jitterY = (Math.random() - 0.5) * (maxJitter * 0.4) * envelope;
+
+                currentX = x1 + dx * i + jitterX;
+                currentY = y1 + dy * i + jitterY;
+                points.push(`${currentX.toFixed(1)},${currentY.toFixed(1)}`);
             }
             points.push(`${x2.toFixed(1)},${y2.toFixed(1)}`);
+
             return 'M ' + points.join(' L ');
         }
 
@@ -2837,150 +2858,138 @@
             const cardEl = document.getElementById(`card-view-${index}`);
             if (!cardEl) return;
 
-            const now = Date.now();
-            if (lastLightningTeamIndex === index && (now - lastLightningTime) < 3800) {
-                currentLightningCombo = Math.min(4, currentLightningCombo + 1);
-            } else {
-                lastLightningTeamIndex = index;
-                currentLightningCombo = 1;
-            }
-            lastLightningTime = now;
-
-            const comboLevel = currentLightningCombo;
-
-            // Heat Theme per Combo Level
-            const themeConfig = {
-                1: { strokeColor: '#00ffcc', glowColor: '#00ffff', flashBg: 'rgba(0, 255, 204, 0.4)', strokeWidth: 7, arcCount: 2, classSuffix: 'lvl1' },
-                2: { strokeColor: '#ffcc00', glowColor: '#ffa800', flashBg: 'rgba(255, 204, 0, 0.5)', strokeWidth: 10, arcCount: 4, classSuffix: 'lvl2' },
-                3: { strokeColor: '#ff4500', glowColor: '#ff2200', flashBg: 'rgba(255, 69, 0, 0.6)', strokeWidth: 14, arcCount: 6, classSuffix: 'lvl3' },
-                4: { strokeColor: '#ff0033', glowColor: '#ff0055', flashBg: 'rgba(255, 0, 51, 0.75)', strokeWidth: 18, arcCount: 99, classSuffix: 'lvl4' }
-            }[comboLevel] || { strokeColor: '#ff0033', glowColor: '#ff0055', flashBg: 'rgba(255, 0, 51, 0.75)', strokeWidth: 18, arcCount: 99, classSuffix: 'lvl4' };
+            const combo = getComboParams(index);
+            const heat = combo.heat;
 
             const rect = cardEl.getBoundingClientRect();
             const targetX = rect.left + rect.width / 2;
-            const targetY = rect.top + rect.height / 3;
+            const targetY = rect.top + rect.height / 2;
 
             const svg = document.getElementById('lightning-svg');
             if (svg) {
-                const startX = targetX + (Math.random() * 160 - 80);
+                const startX = targetX + (Math.random() * (140 + heat * 30) - (70 + heat * 15));
                 const startY = 0;
+                const mainPathD = createJaggedPath(startX, startY, targetX, targetY, 14 + heat * 2, 40 + heat * 10);
 
-                // 1. Ana Gökyüzü Şimşeği
-                const mainPathData = createJaggedPathData(startX, startY, targetX, targetY, 14 + comboLevel * 2, 45 + comboLevel * 10);
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.style.transition = 'opacity 0.25s ease-out';
 
                 const pathGlow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                pathGlow.setAttribute('d', mainPathData);
-                pathGlow.setAttribute('stroke', themeConfig.strokeColor);
-                pathGlow.setAttribute('stroke-width', String(themeConfig.strokeWidth));
+                pathGlow.setAttribute('d', mainPathD);
+                pathGlow.setAttribute('stroke', combo.primaryColor);
+                pathGlow.setAttribute('stroke-width', String(10 + heat * 4));
                 pathGlow.setAttribute('fill', 'none');
-                pathGlow.setAttribute('filter', `drop-shadow(0 0 18px ${themeConfig.glowColor}) drop-shadow(0 0 35px #ffffff)`);
-                pathGlow.style.opacity = '1';
-                pathGlow.style.transition = 'opacity 0.3s ease-out';
+                pathGlow.setAttribute('filter', `drop-shadow(0 0 20px ${combo.primaryColor}) drop-shadow(0 0 45px ${combo.secondaryColor})`);
+                pathGlow.style.opacity = '0.9';
+
+                const pathInner = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathInner.setAttribute('d', mainPathD);
+                pathInner.setAttribute('stroke', combo.secondaryColor);
+                pathInner.setAttribute('stroke-width', String(5 + heat * 2));
+                pathInner.setAttribute('fill', 'none');
 
                 const pathCore = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                pathCore.setAttribute('d', mainPathData);
+                pathCore.setAttribute('d', mainPathD);
                 pathCore.setAttribute('stroke', '#ffffff');
-                pathCore.setAttribute('stroke-width', String(Math.max(3, themeConfig.strokeWidth / 3.5)));
+                pathCore.setAttribute('stroke-width', '3');
                 pathCore.setAttribute('fill', 'none');
-                pathCore.style.opacity = '1';
-                pathCore.style.transition = 'opacity 0.3s ease-out';
 
-                svg.appendChild(pathGlow);
-                svg.appendChild(pathCore);
+                g.appendChild(pathGlow);
+                g.appendChild(pathInner);
+                g.appendChild(pathCore);
 
-                // 2. Havada Çatallanan Yan Dallar
-                const branchPaths = [];
-                for (let b = 0; b < comboLevel; b++) {
-                    const branchStartX = targetX + (Math.random() * 100 - 50);
-                    const branchStartY = targetY * (0.3 + b * 0.25);
-                    const branchEndX = branchStartX + (Math.random() > 0.5 ? 90 : -90);
-                    const branchEndY = branchStartY + (40 + Math.random() * 60);
+                // Yan fraktal dallanmalar
+                for (let b = 0; b < 2 + heat; b++) {
+                    const midProgress = 0.2 + Math.random() * 0.6;
+                    const branchStartX = startX + (targetX - startX) * midProgress;
+                    const branchStartY = startY + (targetY - startY) * midProgress;
+                    const angle = (Math.random() - 0.5) * Math.PI * 0.8;
+                    const len = 60 + Math.random() * 80;
+                    const branchEndX = branchStartX + Math.sin(angle) * len;
+                    const branchEndY = branchStartY + Math.cos(angle) * len;
 
-                    const branchData = createJaggedPathData(branchStartX, branchStartY, branchEndX, branchEndY, 8, 30);
-                    const bPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    bPath.setAttribute('d', branchData);
-                    bPath.setAttribute('stroke', themeConfig.strokeColor);
-                    bPath.setAttribute('stroke-width', String(Math.max(3, themeConfig.strokeWidth / 2)));
-                    bPath.setAttribute('fill', 'none');
-                    bPath.setAttribute('filter', `drop-shadow(0 0 10px ${themeConfig.glowColor})`);
-                    bPath.style.opacity = '0.9';
-                    bPath.style.transition = 'opacity 0.3s ease-out';
-                    svg.appendChild(bPath);
-                    branchPaths.push(bPath);
+                    const branchD = createJaggedPath(branchStartX, branchStartY, branchEndX, branchEndY, 6, 25);
+                    const branchPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    branchPath.setAttribute('d', branchD);
+                    branchPath.setAttribute('stroke', combo.primaryColor);
+                    branchPath.setAttribute('stroke-width', '3');
+                    branchPath.setAttribute('fill', 'none');
+                    branchPath.setAttribute('filter', `drop-shadow(0 0 10px ${combo.primaryColor})`);
+                    g.appendChild(branchPath);
                 }
 
-                // 3. KARTLAR ARASI ELEKTRİK SIÇRAMASI (Chain Arcs!)
-                const arcPaths = [];
-                const otherTeamIndices = teams.map((_, i) => i).filter(i => i !== index);
-                const shuffled = [...otherTeamIndices].sort(() => Math.random() - 0.5);
-                const targetOthers = shuffled.slice(0, themeConfig.arcCount);
+                // ZİNCİR ELEKTRİK (Diğer kartlara sıçrama)
+                const otherIndices = [];
+                teams.forEach((_, i) => { if (i !== index) otherIndices.push(i); });
+                otherIndices.sort(() => Math.random() - 0.5);
 
-                targetOthers.forEach(otherIdx => {
-                    const otherCardEl = document.getElementById(`card-view-${otherIdx}`);
-                    if (!otherCardEl) return;
-                    const oRect = otherCardEl.getBoundingClientRect();
-                    const oX = oRect.left + oRect.width / 2;
-                    const oY = oRect.top + oRect.height / 3;
+                const chainTargetCount = heat === 1 ? 1 : (heat === 2 ? 2 : (heat === 3 ? 4 : otherIndices.length));
+                const targetsToHit = otherIndices.slice(0, chainTargetCount);
 
-                    const arcData = createJaggedPathData(targetX, targetY, oX, oY, 10, 35);
-                    const arcPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    arcPath.setAttribute('d', arcData);
-                    arcPath.setAttribute('stroke', themeConfig.strokeColor);
-                    arcPath.setAttribute('stroke-width', String(Math.max(3, themeConfig.strokeWidth * 0.4)));
-                    arcPath.setAttribute('fill', 'none');
-                    arcPath.setAttribute('filter', `drop-shadow(0 0 12px ${themeConfig.glowColor})`);
-                    arcPath.style.opacity = '1';
-                    arcPath.style.transition = 'opacity 0.3s ease-out';
+                targetsToHit.forEach((otherIdx) => {
+                    const otherEl = document.getElementById(`card-view-${otherIdx}`);
+                    if (!otherEl) return;
+                    const otherRect = otherEl.getBoundingClientRect();
+                    const oX = otherRect.left + otherRect.width / 2;
+                    const oY = otherRect.top + otherRect.height / 2;
 
-                    svg.appendChild(arcPath);
-                    arcPaths.push(arcPath);
+                    const chainD = createJaggedPath(targetX, targetY, oX, oY, 10, 35 + heat * 5);
 
-                    otherCardEl.classList.remove('arced-shock');
-                    void otherCardEl.offsetWidth;
-                    otherCardEl.classList.add('arced-shock');
-                    setTimeout(() => otherCardEl.classList.remove('arced-shock'), 450);
+                    const chainArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    chainArc.setAttribute('d', chainD);
+                    chainArc.setAttribute('stroke', combo.primaryColor);
+                    chainArc.setAttribute('stroke-width', String(3 + Math.min(4, heat)));
+                    chainArc.setAttribute('fill', 'none');
+                    chainArc.setAttribute('filter', `drop-shadow(0 0 12px ${combo.primaryColor}) drop-shadow(0 0 25px ${combo.secondaryColor})`);
+
+                    const chainCore = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    chainCore.setAttribute('d', chainD);
+                    chainCore.setAttribute('stroke', '#ffffff');
+                    chainCore.setAttribute('stroke-width', '1.8');
+                    chainCore.setAttribute('fill', 'none');
+
+                    g.appendChild(chainArc);
+                    g.appendChild(chainCore);
+
+                    otherEl.classList.remove('chain-shocked', 'earthquake-shake-intense');
+                    void otherEl.offsetWidth;
+                    otherEl.classList.add('chain-shocked');
+                    setTimeout(() => otherEl.classList.remove('chain-shocked'), 400);
                 });
 
-                // Efekt temizleme zamanlaması
+                svg.appendChild(g);
+
                 setTimeout(() => {
-                    pathGlow.style.opacity = '0';
-                    pathCore.style.opacity = '0';
-                    branchPaths.forEach(bp => bp.style.opacity = '0');
-                    arcPaths.forEach(ap => ap.style.opacity = '0');
-                    setTimeout(() => {
-                        pathGlow.remove();
-                        pathCore.remove();
-                        branchPaths.forEach(bp => bp.remove());
-                        arcPaths.forEach(ap => ap.remove());
-                    }, 300);
-                }, 160 + comboLevel * 30);
+                    g.style.opacity = '0';
+                    setTimeout(() => { g.remove(); }, 250);
+                }, 160);
             }
 
-            // Ekran çakması
             const overlay = document.getElementById('lightning-overlay');
             if (overlay) {
-                overlay.style.background = themeConfig.flashBg;
-                overlay.classList.remove('flash-screen');
-                void overlay.offsetWidth;
-                overlay.classList.add('flash-screen');
+                overlay.style.background = combo.flashColor;
+                overlay.style.opacity = '1';
+                overlay.style.transition = 'none';
+                setTimeout(() => {
+                    overlay.style.transition = 'opacity 0.2s ease-out';
+                    overlay.style.opacity = '0';
+                }, 80);
             }
 
-            // Vurulan Karta Elektrik Halesi ve Büyüme (Level Class)
-            ['electric-hit-lvl1', 'electric-hit-lvl2', 'electric-hit-lvl3', 'electric-hit-lvl4'].forEach(cls => cardEl.classList.remove(cls));
+            cardEl.classList.remove('electric-hit-heat-1', 'electric-hit-heat-2', 'electric-hit-heat-3', 'electric-hit-heat-4');
             void cardEl.offsetWidth;
-            const activeClass = 'electric-hit-' + themeConfig.classSuffix;
-            cardEl.classList.add(activeClass);
-            setTimeout(() => cardEl.classList.remove(activeClass), 750);
+            const heatClass = `electric-hit-heat-${Math.min(4, heat)}`;
+            cardEl.classList.add(heatClass);
+            setTimeout(() => cardEl.classList.remove(heatClass), 750);
 
-            // Tüm diğer kartlara sarsıntı
             teams.forEach((_, i) => {
                 if (i !== index) {
-                    const otherCard = document.getElementById(`card-view-${i}`);
-                    if (otherCard) {
-                        otherCard.classList.remove('earthquake-shake');
-                        void otherCard.offsetWidth;
-                        otherCard.classList.add('earthquake-shake');
-                        setTimeout(() => otherCard.classList.remove('earthquake-shake'), 450);
+                    const card = document.getElementById(`card-view-${i}`);
+                    if (card && !card.classList.contains('chain-shocked')) {
+                        card.classList.remove('earthquake-shake-intense');
+                        void card.offsetWidth;
+                        card.classList.add('earthquake-shake-intense');
+                        setTimeout(() => card.classList.remove('earthquake-shake-intense'), 480);
                     }
                 }
             });
