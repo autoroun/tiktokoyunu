@@ -1564,6 +1564,7 @@
         let sortByScoreEnabled = true;
         let headerTitleText = 'ŞAMPİYON KİM?';
         let headerAnimEnabled = true;
+        let topLikers = {};
 
         async function checkAccountOnLoad() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -1666,6 +1667,10 @@
                 if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
                 if (settings.headerTitleText) headerTitleText = settings.headerTitleText;
                 if (typeof settings.headerAnimEnabled === 'boolean') headerAnimEnabled = settings.headerAnimEnabled;
+                if (settings.topLikers) {
+                    topLikers = { ...settings.topLikers };
+                    renderTopLikers();
+                }
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -2165,6 +2170,7 @@
                     bgState: { ...bgState },
                     giftSfxState: { ...giftSfxState },
                     bgMusicState: { ...bgMusicState },
+                    topLikers: { ...topLikers },
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 debounceSaveToServer(state);
@@ -2542,6 +2548,49 @@
             });
             applyFloatStyle();
             updateCardOrders();
+            renderTopLikers();
+        }
+
+        function renderTopLikers() {
+            let container = document.getElementById('top-likers-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'top-likers-container';
+                container.style.marginTop = '2rem';
+                container.style.width = '100%';
+                const gameGrid = document.getElementById('game-grid');
+                if (gameGrid && gameGrid.parentNode) {
+                    gameGrid.parentNode.insertBefore(container, gameGrid.nextSibling);
+                } else {
+                    return;
+                }
+            }
+            
+            const likersArr = Object.values(topLikers).sort((a, b) => b.likeCount - a.likeCount).slice(0, 6);
+            if (likersArr.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '<h3 style="text-align:center; color:#00ffcc; font-size:16px; font-weight:900; margin-bottom:1rem; text-shadow: 0 0 10px rgba(0,255,204,0.5);">🔥 EN ÇOK BEĞENENLER 🔥</h3>';
+            html += '<div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; max-width:600px; margin:0 auto;">';
+            
+            likersArr.forEach((liker, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+                const img = liker.profilePictureUrl || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==';
+                const medalHtml = medal ? `<div style="position:absolute; top:-10px; left:-10px; font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${medal}</div>` : '';
+                html += `
+                    <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,255,204,0.3); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                        ${medalHtml}
+                        <img src="${escapeHtml(img)}" style="width:48px; height:48px; border-radius:50%; border:2px solid #00ffcc; object-fit:cover; margin-bottom:6px;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg=='">
+                        <div style="color:#fff; font-size:11px; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(liker.nickname)}</div>
+                        <div style="color:#00ffcc; font-size:12px; font-weight:900; margin-top:2px;">❤️ ${liker.likeCount}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         function renderTeamEditors() {
@@ -3859,6 +3908,7 @@
             const confirmed = confirm('Tüm takımların puanları sıfırlanacak. Emin misiniz?');
             if (!confirmed) return;
             teams.forEach(t => { t.score = 0; });
+            topLikers = {};
             stopLeaderAnthem(true);
             renderGame();
             saveStateNow();
@@ -4230,6 +4280,17 @@
                     const fallback = Number(matches[0].team.selectedGiftDiamondCount || 1) || 1;
                     const score = totalPoints > 0 ? totalPoints : (fallback * (Number(data.repeatCount || 1) || 1));
                     matches.forEach(entry => givePoint(entry.index, score));
+                });
+
+                socket.on('like', (data) => {
+                    if (!data || !data.uniqueId) return;
+                    const id = data.uniqueId;
+                    if (!topLikers[id]) {
+                        topLikers[id] = { nickname: data.nickname || 'İzleyici', profilePictureUrl: data.profilePictureUrl || '', likeCount: 0 };
+                    }
+                    topLikers[id].likeCount += Number(data.likeCount || 1);
+                    renderTopLikers();
+                    debounceSave();
                 });
             } else if (socket.connected) {
                 socket.emit('setTargetUser', user);

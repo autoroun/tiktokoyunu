@@ -239,6 +239,16 @@ function bindTikTokEvents(connection) {
     io.emit('gift', payload);
   });
 
+  connection.on('like', (data) => {
+    const payload = {
+      nickname: data.nickname,
+      uniqueId: data.uniqueId || data.userId || data.user_id || data.nickname,
+      profilePictureUrl: data.profilePictureUrl,
+      likeCount: Number(data.likeCount || 1)
+    };
+    io.emit('like', payload);
+  });
+
   connection.on('streamEnd', () => {
     disconnectTikTokConnection('Canli yayin sona erdi.');
   });
