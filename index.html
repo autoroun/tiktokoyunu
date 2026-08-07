@@ -1201,16 +1201,25 @@
         function initSettingsSync() {
             if (!currentToken || syncSocket) return;
             syncSocket = io();
-            syncSocket.on('connect', () => {
+            syncSocket.on('connect', async () => {
                 syncSocket.emit('joinAccountRoom', currentToken);
                 console.log('[SYNC] Hesap odasına katıldı:', currentToken);
+                try {
+                    const res = await fetch('/api/account/' + currentToken);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.settings) applyServerSettings(data.settings);
+                        if (data.assets) await applyServerAssets(data.assets);
+                        await refreshFullUI();
+                    }
+                } catch (e) {}
             });
             syncSocket.on('settings_updated', async (data) => {
                 if (!data || data.sessionId === SESSION_ID) return; // Kendi kaydettimizi yok say
                 if (data.settings) applyServerSettings(data.settings);
                 if (data.assets) await applyServerAssets(data.assets);
                 await refreshFullUI();
-                showToast('🔄 Başka cihazdan ayarlar güncellendi!');
+                showToast('🔄 Başka cihazdan/sekmeden ayarlar güncellendi!');
             });
         }
 
@@ -1706,8 +1715,8 @@
             applyBackground();
             document.getElementById('reminder-sfx-val').textContent = reminderSfxUrl ? 'Yüklü' : 'Yok';
 
-            const remW = localStorage.getItem('ui_rem_w') || '860';
-            const remH = localStorage.getItem('ui_rem_h') || '0';
+            const remW = reminderState.remW || localStorage.getItem('ui_rem_w') || '860';
+            const remH = reminderState.remH || localStorage.getItem('ui_rem_h') || '0';
             document.getElementById('rem-w').value = remW;
             document.getElementById('rem-h').value = remH;
             applyReminderSize(remW, remH);
@@ -2484,6 +2493,8 @@
             document.documentElement.style.setProperty('--rem-card-h', height === 0 ? 'auto' : height + 'px');
             document.getElementById('rem-w-val').textContent = String(width);
             document.getElementById('rem-h-val').textContent = String(height);
+            reminderState.remW = width;
+            reminderState.remH = height;
         }
 
         function syncReminderLabels() {
@@ -2616,6 +2627,7 @@
                 localStorage.setItem('ui_rem_w', widthInput.value);
                 localStorage.setItem('ui_rem_h', heightInput.value);
                 applyReminderSize(widthInput.value, heightInput.value);
+                debounceSave();
             };
             widthInput.addEventListener('input', onReminderSize);
             widthInput.addEventListener('change', onReminderSize);
@@ -2674,6 +2686,14 @@
         }
 
         window.addEventListener('beforeunload', saveStateNow);
+        window.addEventListener('storage', async (event) => {
+            if (event.key === STORAGE_KEY && event.newValue) {
+                try {
+                    loadState();
+                    await refreshFullUI();
+                } catch (err) {}
+            }
+        });
         window.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 if (document.getElementById('gift-picker-modal').classList.contains('open')) {
