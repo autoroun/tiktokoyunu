@@ -1200,6 +1200,42 @@
             </div>
         </div>
 
+        <div class="setting-section border border-emerald-500/30" style="margin-top:16px;">
+            <h3 class="text-[10px] font-bold text-emerald-400 mb-3">🎵 ARKA PLAN MÜZİĞİ & MARŞ ZAMANLAYICISI</h3>
+            <div class="flex flex-col gap-3">
+                <div class="mini-help">Yayın esnasında sürekli çalacak genel arka plan müziğidir. Takıma puan/hediye geldiğinde marş başlar, belirlediğiniz süre (ör: 60 saniye / 1 dk) sonra marş durup arka plan müziği otomatik tekrar devreye girer.</div>
+                
+                <div>
+                    <label class="text-[9px] text-white/60 font-bold block mb-1">ARKA PLAN MÜZİĞİ YÜKLE (MP3 / WAV)</label>
+                    <input type="file" accept="audio/*" onchange="handleBgMusicFile(this)" style="width:100%;font-size:10px;">
+                    <div id="bg-music-file-info" class="mini-help mt-1 text-emerald-300 font-bold">Müzik yüklü değil</div>
+                    <button onclick="clearBgMusic()" class="btn btn-danger text-[9px] w-full mt-1">MÜZİĞİ KALDIR</button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <input id="bg-music-enabled" type="checkbox" checked onchange="updateBgMusicParam('enabled', this.checked)">
+                    <label for="bg-music-enabled" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Arka Plan Müziğini Etkinleştir</label>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center text-[9px] mb-1">
+                        <label style="margin-top:0;">Müzik Ses Seviyesi:</label>
+                        <span id="bg-music-vol-val" class="font-bold text-emerald-300">50%</span>
+                    </div>
+                    <input id="bg-music-vol-slider" type="range" min="0" max="100" value="50" oninput="updateBgMusicParam('volume', this.value)">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center text-[9px] mb-1">
+                        <label class="font-bold text-emerald-300">⏱️ Marş Çalma Süresi (Sonra Müziğe Dön):</label>
+                        <span id="bg-music-delay-val" class="font-bold text-yellow-300">60 saniye (1 dk)</span>
+                    </div>
+                    <input id="bg-music-delay-slider" type="range" min="5" max="180" step="5" value="60" oninput="updateBgMusicParam('resumeDelaySec', this.value)">
+                    <div class="mini-help mt-0.5">Puan geldiğinde marş başlar. Belirlediğiniz süre (ör: 60s) dolduğunda marş durur ve arka plan müziği tekrar devreye girer.</div>
+                </div>
+            </div>
+        </div>
+
         <div class="setting-section border border-red-500/40" style="margin-top:16px;">
             <h3 class="text-[10px] font-bold text-red-400 mb-2">⚽ MAÇ & SKOR YÖNETİMİ</h3>
             <button onclick="resetAllScores()" class="btn btn-danger w-full text-[10px] py-2.5 font-extrabold flex items-center justify-center gap-2">
@@ -1358,7 +1394,16 @@
         let currentUsername = null;
         let serverSaveTimer = null;
         const SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        let syncSocket = null;
+        const bgMusicState = {
+            enabled: true,
+            volume: 50,
+            mute: false,
+            resumeDelaySec: 60,
+            fileName: ''
+        };
+        let globalBgMusicAudio = null;
+        let globalBgMusicDataUrl = null;
+        let anthemResumeTimer = null;
         let tiktokTargetUsername = '';
         let autoConnectEnabled = true;
         let sortByScoreEnabled = true;
@@ -1459,6 +1504,7 @@
                 if (settings.anthemState) Object.assign(anthemState, settings.anthemState);
                 if (settings.bgState) Object.assign(bgState, settings.bgState);
                 if (settings.giftSfxState) Object.assign(giftSfxState, settings.giftSfxState);
+                if (settings.bgMusicState) Object.assign(bgMusicState, settings.bgMusicState);
                 if (settings.tiktokUsername) tiktokTargetUsername = settings.tiktokUsername;
                 if (typeof settings.autoConnectEnabled === 'boolean') autoConnectEnabled = settings.autoConnectEnabled;
                 if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
@@ -1498,6 +1544,10 @@
                 }
                 const bg = await idbGet('global:background');
                 if (bg) assets['global:background'] = bg;
+                const bgMusicData = await idbGet('global:bg-music');
+                if (bgMusicData) {
+                    assets['global:bg-music'] = bgMusicData;
+                }
             } catch (err) { console.error('collectAllAssets error:', err); }
             return assets;
         }
@@ -1527,6 +1577,11 @@
             try {
                 for (const [key, value] of Object.entries(assets)) {
                     if (value) await idbSet(key, value);
+                }
+                const bgMusicData = assets['global:bg-music'];
+                if (bgMusicData) {
+                    globalBgMusicDataUrl = bgMusicData;
+                    await idbSet('global:bg-music', bgMusicData);
                 }
             } catch (err) { console.error('applyServerAssets error:', err); }
         }
@@ -1622,6 +1677,8 @@
                 }
                 const bgAsset = await idbGet('global:background');
                 if (bgAsset) assets['global:background'] = bgAsset;
+                const bgMusicData = await idbGet('global:bg-music');
+                if (bgMusicData) assets['global:bg-music'] = bgMusicData;
 
                 const backup = {
                     version: 2,
@@ -1894,7 +1951,8 @@
                     reminderState: { ...reminderState },
                     anthemState: { ...anthemState },
                     bgState: { ...bgState },
-                    giftSfxState: { ...giftSfxState }
+                    giftSfxState: { ...giftSfxState },
+                    bgMusicState: { ...bgMusicState },
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 debounceSaveToServer(state);
@@ -1990,6 +2048,11 @@
             } else {
                 currentBgDataUrl = null;
             }
+            
+            const bgMusicData = await idbGet('global:bg-music');
+            if (bgMusicData) {
+                globalBgMusicDataUrl = bgMusicData;
+            }
             applyBackground();
         }
 
@@ -2006,6 +2069,7 @@
                 syncAnthemControls();
                 syncBgControls();
                 syncGiftSfxControls();
+                syncBgMusicControls();
                 updateUserDisplay();
             } catch (err) {
                 console.error('refreshFullUI error:', err);
@@ -2046,6 +2110,7 @@
                 Object.assign(anthemState, state.anthemState || {});
                 Object.assign(bgState, state.bgState || {});
                 Object.assign(giftSfxState, state.giftSfxState || {});
+                Object.assign(bgMusicState, state.bgMusicState || {});
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -2097,6 +2162,7 @@
             syncAnthemControls();
             syncBgControls();
             syncGiftSfxControls();
+            syncBgMusicControls();
             applyBackground();
             document.getElementById('reminder-sfx-val').textContent = reminderSfxUrl ? 'Yüklü' : 'Yok';
 
@@ -2927,6 +2993,9 @@
                 oscillator.start();
                 oscillator.stop(audioUnlockCtx.currentTime + 0.02);
                 audioUnlocked = true;
+                
+                // Arka plan müziğini tetikle
+                playGlobalBgMusic();
             } catch (err) {}
         }
 
@@ -3092,6 +3161,7 @@
             stopLeaderAnthem(false);
             lastLeaderTeamId = leaderId;
             primeAudioPlayback();
+            pauseGlobalBgMusic(); // Marş girince müziği durdur
 
             try {
                 const audio = new Audio(leader.anthem);
@@ -3317,6 +3387,93 @@
         }
 
         // ── GENEL HEDİYE / GOL EFEKT SESİ YÖNETİMİ ────────────────────
+        function syncBgMusicControls() {
+            const enabledCb = document.getElementById('bg-music-enabled');
+            if (enabledCb) enabledCb.checked = !!bgMusicState.enabled;
+
+            const volVal = document.getElementById('bg-music-vol-val');
+            const volSlider = document.getElementById('bg-music-vol-slider');
+            if (volVal) volVal.textContent = (bgMusicState.volume ?? 50) + '%';
+            if (volSlider) volSlider.value = String(bgMusicState.volume ?? 50);
+
+            const delayVal = document.getElementById('bg-music-delay-val');
+            const delaySlider = document.getElementById('bg-music-delay-slider');
+            const sec = Number(bgMusicState.resumeDelaySec || 60);
+            if (delayVal) delayVal.textContent = `${sec} saniye (${(sec / 60).toFixed(1)} dk)`;
+            if (delaySlider) delaySlider.value = String(sec);
+
+            const infoEl = document.getElementById('bg-music-file-info');
+            if (infoEl) {
+                infoEl.textContent = bgMusicState.fileName ? `Yüklü: ${bgMusicState.fileName}` : (globalBgMusicDataUrl ? 'Müzik Yüklü' : 'Müzik yüklü değil');
+            }
+        }
+
+        function updateBgMusicParam(key, val) {
+            if (key === 'enabled') bgMusicState.enabled = !!val;
+            if (key === 'volume') {
+                bgMusicState.volume = Math.max(0, Math.min(100, Number(val) || 50));
+                if (globalBgMusicAudio) {
+                    globalBgMusicAudio.volume = bgMusicState.volume / 100;
+                }
+            }
+            if (key === 'resumeDelaySec') {
+                bgMusicState.resumeDelaySec = Math.max(5, Math.min(300, Number(val) || 60));
+            }
+            syncBgMusicControls();
+            debounceSave();
+        }
+
+        async function handleBgMusicFile(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const dataUrl = await fileToDataUrl(file);
+            globalBgMusicDataUrl = dataUrl;
+            await idbSet('global:bg-music', dataUrl);
+            bgMusicState.fileName = file.name || 'Arka Plan Müziği';
+            bgMusicState.enabled = true;
+
+            if (globalBgMusicAudio) {
+                try { globalBgMusicAudio.pause(); } catch(e){}
+                globalBgMusicAudio = null;
+            }
+
+            syncBgMusicControls();
+            playGlobalBgMusic();
+            debounceSave();
+            showToast('Arka plan müziği yüklendi ve başlatıldı! 🎵');
+        }
+
+        async function clearBgMusic() {
+            globalBgMusicDataUrl = null;
+            bgMusicState.fileName = '';
+            await idbDel('global:bg-music');
+            if (globalBgMusicAudio) {
+                try { globalBgMusicAudio.pause(); } catch(e){}
+                globalBgMusicAudio = null;
+            }
+            syncBgMusicControls();
+            debounceSave();
+            showToast('Arka plan müziği kaldırıldı.');
+        }
+
+        function playGlobalBgMusic() {
+            if (!bgMusicState.enabled || bgMusicState.mute || !globalBgMusicDataUrl) return;
+            if (leaderAnthemAudio && !leaderAnthemAudio.paused) return;
+            primeAudioPlayback();
+            if (!globalBgMusicAudio) {
+                globalBgMusicAudio = new Audio(globalBgMusicDataUrl);
+                globalBgMusicAudio.loop = true;
+            }
+            globalBgMusicAudio.volume = Math.max(0, Math.min(1, Number(bgMusicState.volume ?? 50) / 100));
+            globalBgMusicAudio.play().catch(() => {});
+        }
+
+        function pauseGlobalBgMusic() {
+            if (globalBgMusicAudio && !globalBgMusicAudio.paused) {
+                try { globalBgMusicAudio.pause(); } catch(e) {}
+            }
+        }
+
         function syncGiftSfxControls() {
             const enabledCb = document.getElementById('gift-sfx-enabled');
             if (enabledCb) enabledCb.checked = !!giftSfxState.enabled;
@@ -3480,6 +3637,21 @@
         function playSpecificAnthem(team, forceRestart = true) {
             const teamId = Number(team.id || 0) || 0;
             const sameTeam = lastLeaderTeamId === teamId;
+
+            pauseGlobalBgMusic();
+
+            if (anthemResumeTimer) {
+                clearTimeout(anthemResumeTimer);
+                anthemResumeTimer = null;
+            }
+
+            const delayMs = (Number(bgMusicState.resumeDelaySec) || 60) * 1000;
+            if (delayMs > 0) {
+                anthemResumeTimer = setTimeout(() => {
+                    stopLeaderAnthem(false);
+                    playGlobalBgMusic();
+                }, delayMs);
+            }
 
             if (sameTeam && leaderAnthemAudio && !forceRestart) {
                 syncAnthemControls();
