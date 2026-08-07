@@ -1029,6 +1029,42 @@
             </div>
         </div>
 
+        <div class="setting-section border border-yellow-500/30" style="margin-top:16px;">
+            <h3 class="text-[10px] font-bold text-yellow-400 mb-3">🔔 GENEL HEDİYE / GOL EFEKT SESİ</h3>
+            <div class="flex flex-col gap-3">
+                <div class="mini-help">Herhangi bir takıma hediye/puan geldiğinde çalan genel efekt sesidir. (Tüm takımlar için ortaktır).</div>
+
+                <div class="flex items-center gap-2">
+                    <input id="gift-sfx-enabled" type="checkbox" checked onchange="updateGiftSfxParam('enabled', this.checked)">
+                    <label for="gift-sfx-enabled" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Efekt Sesini Etkinleştir</label>
+                </div>
+
+                <div>
+                    <label class="text-[9px] text-white/60 font-bold block mb-1">EFEKT SESİ DOSYASI YÜKLE (MP3 / WAV)</label>
+                    <input type="file" id="gift-sfx-file" accept="audio/*" onchange="handleGiftSfxChange(this)" style="width:100%;font-size:10px;">
+                    <div id="gift-sfx-file-info" class="mini-help mt-1 text-yellow-300 font-bold">Varsayılan Şimşek / Sentez Sesi</div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="button" onclick="previewGiftSfx()" class="btn btn-accent text-[9px] flex-1">▶️ EFEKT SESİNİ DİNLE</button>
+                    <button type="button" onclick="removeGiftSfx()" class="btn btn-danger text-[9px]">🗑️ SİL</button>
+                </div>
+
+                <div class="flex items-center gap-2 mt-1">
+                    <input id="gift-sfx-mute" type="checkbox" onchange="updateGiftSfxParam('mute', this.checked)">
+                    <label for="gift-sfx-mute" class="text-[9px] font-bold text-white cursor-pointer" style="margin-top:0;">Efekt Sesini Sustur (Mute)</label>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center text-[9px] mb-1">
+                        <label style="margin-top:0;">Efekt Ses Seviyesi:</label>
+                        <span id="gift-sfx-vol-val" class="font-bold text-yellow-300">80%</span>
+                    </div>
+                    <input id="gift-sfx-vol-slider" type="range" min="0" max="100" value="80" oninput="updateGiftSfxParam('volume', this.value)">
+                </div>
+            </div>
+        </div>
+
         <div id="team-editor-list"></div>
 
         <div class="setting-section border border-orange-500/25" style="margin-top:16px;">
@@ -1306,6 +1342,8 @@
                 }
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
+                const giftSfx = await idbGet('global:gift-sfx');
+                if (giftSfx) assets['global:gift-sfx'] = giftSfx;
                 const bg = await idbGet('global:background');
                 if (bg) assets['global:background'] = bg;
 
@@ -1408,6 +1446,8 @@
                 // Reminder SFX
                 const sfx = await idbGet(reminderSfxAssetKey);
                 if (sfx) assets[reminderSfxAssetKey] = sfx;
+                const giftSfx = await idbGet('global:gift-sfx');
+                if (giftSfx) assets['global:gift-sfx'] = giftSfx;
                 const bgAsset = await idbGet('global:background');
                 if (bgAsset) assets['global:background'] = bgAsset;
 
@@ -1544,6 +1584,13 @@
             ytMute: true,
             ytVolume: 50
         };
+        const giftSfxState = {
+            enabled: true,
+            mute: false,
+            volume: 80,
+            sfxAssetKey: 'global:gift-sfx'
+        };
+        let giftSfxDataUrl = null;
         let currentBgDataUrl = null;
 
         let audioUnlockCtx = null;
@@ -1666,10 +1713,11 @@
                     teams: serializeTeams(),
                     giftCatalog,
                     giftSortOrder,
-                    styleState,
-                    reminderState,
-                    anthemState,
-                    bgState,
+                    styleState: { ...styleState },
+                    reminderState: { ...reminderState },
+                    anthemState: { ...anthemState },
+                    bgState: { ...bgState },
+                    giftSfxState: { ...giftSfxState },
                     techPanelOpen: document.getElementById('tech-panel').style.display !== 'none'
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1709,7 +1757,7 @@
                 const tx = db.transaction(DB_STORE, 'readonly');
                 const request = tx.objectStore(DB_STORE).get(key);
                 request.onsuccess = () => resolve(request.result || null);
-                request.onerror = () => reject(request.error);
+                request.onerror = () => reject(tx.error);
             });
         }
 
@@ -1773,6 +1821,7 @@
                 renderGiftPickerList();
                 syncAnthemControls();
                 syncBgControls();
+                syncGiftSfxControls();
                 updateUserDisplay();
             } catch (err) {
                 console.error('refreshFullUI error:', err);
@@ -1812,6 +1861,7 @@
                 Object.assign(reminderState, state.reminderState || {});
                 Object.assign(anthemState, state.anthemState || {});
                 Object.assign(bgState, state.bgState || {});
+                Object.assign(giftSfxState, state.giftSfxState || {});
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -2767,17 +2817,169 @@
             });
         }
 
+        // ── GENEL HEDİYE / GOL EFEKT SESİ YÖNETİMİ ────────────────────
+        function syncGiftSfxControls() {
+            const enabledCb = document.getElementById('gift-sfx-enabled');
+            if (enabledCb) enabledCb.checked = !!giftSfxState.enabled;
+
+            const muteCb = document.getElementById('gift-sfx-mute');
+            if (muteCb) muteCb.checked = !!giftSfxState.mute;
+
+            const volVal = document.getElementById('gift-sfx-vol-val');
+            const volSlider = document.getElementById('gift-sfx-vol-slider');
+            if (volVal) volVal.textContent = (giftSfxState.volume ?? 80) + '%';
+            if (volSlider) volSlider.value = String(giftSfxState.volume ?? 80);
+
+            const fileInfo = document.getElementById('gift-sfx-file-info');
+            if (fileInfo) {
+                fileInfo.textContent = giftSfxDataUrl ? '🎵 Özel Efekt Sesi Yüklü' : 'Varsayılan Şimşek / Sentez Sesi';
+            }
+        }
+
+        function updateGiftSfxParam(key, val) {
+            if (key === 'enabled') giftSfxState.enabled = !!val;
+            if (key === 'mute') giftSfxState.mute = !!val;
+            if (key === 'volume') giftSfxState.volume = Math.max(0, Math.min(100, Number(val) || 80));
+
+            syncGiftSfxControls();
+            debounceSave();
+        }
+
+        async function handleGiftSfxChange(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const dataUrl = await fileToDataUrl(file);
+            await idbSet('global:gift-sfx', dataUrl);
+            giftSfxDataUrl = dataUrl;
+            syncGiftSfxControls();
+            debounceSave();
+            showToast('Genel Hediye / Gol efekt sesi yüklendi. 🔔');
+        }
+
+        async function removeGiftSfx() {
+            await idbDel('global:gift-sfx');
+            giftSfxDataUrl = null;
+            const input = document.getElementById('gift-sfx-file');
+            if (input) input.value = '';
+            syncGiftSfxControls();
+            debounceSave();
+            showToast('Genel Hediye / Gol efekt sesi silindi.');
+        }
+
+        function previewGiftSfx() {
+            playGiftSfx();
+            showToast('Genel hediye efekt sesi çalındı.');
+        }
+
+        function playGiftSfx() {
+            if (!giftSfxState.enabled || giftSfxState.mute) return;
+            primeAudioPlayback();
+
+            if (giftSfxDataUrl) {
+                try {
+                    const audio = new Audio(giftSfxDataUrl);
+                    audio.volume = Math.max(0, Math.min(1, Number(giftSfxState.volume ?? 80) / 100));
+                    audio.play().catch(() => {});
+                } catch (e) {}
+            } else {
+                playSyntheticGoalChime();
+            }
+        }
+
+        function playSyntheticGoalChime() {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                const ctx = audioUnlockCtx || new AC();
+                if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.18);
+
+                const vol = (Number(giftSfxState.volume ?? 80) / 100) * 0.22;
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.45);
+            } catch (e) {}
+        }
+
+        function playTeamAnthem(index, forceRestart = true) {
+            if (!teams[index]) return;
+            const team = teams[index];
+
+            if (!team.anthem) {
+                const leader = getLeaderTeam();
+                if (leader && leader.anthem) {
+                    playSpecificAnthem(leader, forceRestart);
+                } else {
+                    stopLeaderAnthem(true);
+                }
+                return;
+            }
+
+            playSpecificAnthem(team, forceRestart);
+        }
+
+        function playSpecificAnthem(team, forceRestart = true) {
+            const teamId = Number(team.id || 0) || 0;
+            const sameTeam = lastLeaderTeamId === teamId;
+
+            if (sameTeam && leaderAnthemAudio && !forceRestart) {
+                syncAnthemControls();
+                if (leaderAnthemAudio.paused) {
+                    leaderAnthemAudio.play().catch(() => {});
+                }
+                return;
+            }
+
+            stopLeaderAnthem(false);
+            lastLeaderTeamId = teamId;
+            primeAudioPlayback();
+
+            try {
+                const audio = new Audio(team.anthem);
+                audio.loop = true;
+                audio.preload = 'auto';
+                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                audio.muted = !!anthemState.mute;
+                leaderAnthemAudio = audio;
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {});
+                }
+            } catch (err) {
+                console.error('Anthem play error:', err);
+            }
+        }
+
         function givePoint(index, amount) {
             if (!teams[index]) return;
             const add = Number(amount || 0) || 0;
             if (add <= 0) return;
+
             teams[index].score += add;
             const scoreView = document.getElementById(`score-view-${index}`);
             if (scoreView) scoreView.innerText = String(teams[index].score);
 
+            // 1. Şimşek & Elektrik Görsel Efekti
             triggerLightningStrike(index);
 
-            playLeaderAnthemIfNeeded(false, index);
+            // 2. Genel Hediye / Gol Efekt Sesi
+            playGiftSfx();
+
+            // 3. Hediye Gelen Takımın Kendi Marşını Anında Çal!
+            playTeamAnthem(index, true);
+
             debounceSave();
         }
 
