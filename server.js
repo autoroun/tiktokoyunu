@@ -250,12 +250,27 @@ function bindTikTokEvents(connection) {
 
   connection.on('like', (data) => {
     if (!data) return;
-    const profilePictureUrl = pickFirstImage(data.profilePictureUrl || data.profilePicture || data.avatarThumb || data.userDetails?.profilePictureUrl);
+    const profilePictureUrl = pickFirstImage(
+      data.profilePictureUrl ||
+      data.profilePicture ||
+      data.avatarThumb ||
+      data.userDetails?.profilePictureUrl ||
+      data.userDetails?.profilePicture ||
+      data.userDetails?.avatarThumb ||
+      data.user?.profile_picture ||
+      data.user?.avatar_thumb
+    );
+    const nickname = data.nickname || data.userDetails?.nickname || data.user?.nickname || 'İzleyici';
+    const uniqueId = String(data.uniqueId || data.userId || data.user_id || data.userDetails?.uniqueId || nickname);
+    const likeCount = Number(data.likeCount || data.like_count || 1) || 1;
+    const totalLikeCount = Number(data.totalLikeCount || data.total_like_count || 0) || 0;
+
     const payload = {
-      nickname: data.nickname || data.userDetails?.nickname || 'İzleyici',
-      uniqueId: String(data.uniqueId || data.userId || data.user_id || data.nickname || ('u_' + Math.random().toString(36).slice(2))),
-      profilePictureUrl,
-      likeCount: Number(data.likeCount || 1) || 1
+      nickname,
+      uniqueId,
+      profilePictureUrl: profilePictureUrl || '',
+      likeCount,
+      totalLikeCount
     };
     io.emit('like', payload);
   });

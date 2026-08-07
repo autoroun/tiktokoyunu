@@ -55,9 +55,11 @@
             display: flex;
             flex-direction: column;
             flex: 1;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             position: relative;
             z-index: 2;
+            padding-bottom: 30px;
         }
 
         .game-grid {
@@ -1244,6 +1246,10 @@
                     <input id="hide-team-names-checkbox" type="checkbox" onchange="updateHideTeamNamesSetting(this.checked)">
                     🙈 Takım İsimlerini Gizle (Yalnızca Logo & Puan Göster)
                 </label>
+                <label class="flex items-center gap-2 text-[10px] text-pink-300 font-bold cursor-pointer">
+                    <input id="show-top-likers-checkbox" type="checkbox" checked onchange="updateShowTopLikersSetting(this.checked)">
+                    ❤️ En Çok Beğenenler Tablosunu Göster
+                </label>
                 <label class="flex items-center gap-2 text-[10px] text-emerald-300 font-bold cursor-pointer">
                     <input id="style-float-enabled" type="checkbox" checked onchange="updateFloatSetting('enabled', this.checked)">
                     🌊 Durgun Kart Süzülme / Sallanma Efekti
@@ -1720,6 +1726,7 @@
         let autoConnectEnabled = true;
         let sortByScoreEnabled = true;
         let hideTeamNames = false;
+        let showTopLikers = true;
         let headerTitleText = 'ŞAMPİYON KİM?';
         let headerAnimEnabled = true;
         let topLikers = {};
@@ -1857,6 +1864,7 @@
                 if (typeof settings.autoConnectEnabled === 'boolean') autoConnectEnabled = settings.autoConnectEnabled;
                 if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
                 if (typeof settings.hideTeamNames === 'boolean') hideTeamNames = settings.hideTeamNames;
+                if (typeof settings.showTopLikers === 'boolean') showTopLikers = settings.showTopLikers;
                 if (settings.headerTitleText) headerTitleText = settings.headerTitleText;
                 if (typeof settings.headerAnimEnabled === 'boolean') headerAnimEnabled = settings.headerAnimEnabled;
                 if (settings.headerStyleState) Object.assign(headerStyleState, settings.headerStyleState);
@@ -2387,6 +2395,7 @@
                     autoConnectEnabled,
                     sortByScoreEnabled,
                     hideTeamNames: Boolean(hideTeamNames),
+                    showTopLikers: Boolean(showTopLikers),
                     headerTitleText,
                     headerAnimEnabled,
                     styleState: { ...styleState },
@@ -2567,6 +2576,7 @@
                 if (typeof state.autoConnectEnabled === 'boolean') autoConnectEnabled = state.autoConnectEnabled;
                 if (typeof state.sortByScoreEnabled === 'boolean') sortByScoreEnabled = state.sortByScoreEnabled;
                 if (typeof state.hideTeamNames === 'boolean') hideTeamNames = state.hideTeamNames;
+                if (typeof state.showTopLikers === 'boolean') showTopLikers = state.showTopLikers;
                 if (state.headerTitleText) headerTitleText = state.headerTitleText;
                 if (typeof state.headerAnimEnabled === 'boolean') headerAnimEnabled = state.headerAnimEnabled;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
@@ -2683,6 +2693,12 @@
         function updateHideTeamNamesSetting(enabled) {
             hideTeamNames = Boolean(enabled);
             applyHideTeamNames();
+            debounceSave();
+        }
+
+        function updateShowTopLikersSetting(enabled) {
+            showTopLikers = Boolean(enabled);
+            renderTopLikers();
             debounceSave();
         }
 
@@ -2834,49 +2850,79 @@
             showToast(`❤️ TEST: ${randomNick} kişisinden +${count} beğeni geldi!`);
         }
 
+        function handleLikeEvent(data) {
+            if (!data) return;
+            const id = String(data.uniqueId || data.nickname || ('anon_' + Math.random().toString(36).slice(2)));
+            if (!topLikers[id]) {
+                topLikers[id] = {
+                    nickname: data.nickname || 'İzleyici',
+                    profilePictureUrl: data.profilePictureUrl || '',
+                    likeCount: 0
+                };
+            }
+            topLikers[id].likeCount += Number(data.likeCount || 1) || 1;
+            if (data.profilePictureUrl && !topLikers[id].profilePictureUrl) {
+                topLikers[id].profilePictureUrl = data.profilePictureUrl;
+            }
+            if (data.nickname && (!topLikers[id].nickname || topLikers[id].nickname === 'İzleyici')) {
+                topLikers[id].nickname = data.nickname;
+            }
+            renderTopLikers();
+        }
+
         function renderTopLikers() {
             let container = document.getElementById('top-likers-container');
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'top-likers-container';
-                container.style.marginTop = '2rem';
+                container.style.marginTop = '1.5rem';
+                container.style.marginBottom = '2rem';
                 container.style.width = '100%';
-                const gameGrid = document.getElementById('game-grid');
-                if (gameGrid && gameGrid.parentNode) {
-                    gameGrid.parentNode.insertBefore(container, gameGrid.nextSibling);
+                const mainLayout = document.querySelector('.main-layout');
+                if (mainLayout) {
+                    mainLayout.appendChild(container);
                 } else {
                     return;
                 }
             }
+
+            const likersCb = document.getElementById('show-top-likers-checkbox');
+            if (likersCb) likersCb.checked = showTopLikers !== false;
+
+            if (showTopLikers === false) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
             
             const likersArr = Object.values(topLikers).sort((a, b) => b.likeCount - a.likeCount).slice(0, 6);
+            const fallbackAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="30" fill="%2300ffcc" opacity="0.2"/><circle cx="30" cy="22" r="10" fill="%2300ffcc"/><path d="M12 50 C12 38 48 38 48 50" fill="%2300ffcc"/></svg>';
             
-            let html = '<div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:1rem;">';
-            html += '<h3 style="text-align:center; color:#00ffcc; font-size:16px; font-weight:900; margin:0; text-shadow: 0 0 10px rgba(0,255,204,0.5);">🔥 EN ÇOK BEĞENENLER 🔥</h3>';
-            html += '<button type="button" onclick="sendTestLike(15)" class="btn btn-secondary" style="font-size:9px; padding:3px 8px; white-space:nowrap;">❤️ TEST BEĞENİSİ</button>';
+            let html = '<div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:12px;">';
+            html += '<h3 style="text-align:center; color:#00ffcc; font-size:15px; font-weight:900; margin:0; letter-spacing:1px; text-shadow: 0 0 12px rgba(0,255,204,0.6);">🔥 EN ÇOK BEĞENENLER 🔥</h3>';
+            html += '<button type="button" onclick="sendTestLike(15)" class="btn btn-secondary" style="font-size:9px; padding:3px 10px; font-weight:bold; white-space:nowrap;">❤️ TEST BEĞENİSİ (+15)</button>';
             html += '</div>';
 
-            html += '<div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; max-width:600px; margin:0 auto;">';
+            html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; max-width:850px; margin:0 auto; padding:0 12px;">';
             
             for (let i = 0; i < 6; i++) {
                 const liker = likersArr[i];
                 if (liker) {
-                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-                    const img = liker.profilePictureUrl || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==';
-                    const medalHtml = medal ? `<div style="position:absolute; top:-10px; left:-10px; font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${medal}</div>` : '';
+                    const medal = i === 0 ? '🥇 1.' : i === 1 ? '🥈 2.' : i === 2 ? '🥉 3.' : `#${i + 1}`;
+                    const img = liker.profilePictureUrl || fallbackAvatar;
                     html += `
-                        <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,255,204,0.3); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-                            ${medalHtml}
-                            <img src="${escapeHtml(img)}" style="width:48px; height:48px; border-radius:50%; border:2px solid #00ffcc; object-fit:cover; margin-bottom:6px;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg=='">
-                            <div style="color:#fff; font-size:11px; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(liker.nickname)}</div>
-                            <div style="color:#00ffcc; font-size:12px; font-weight:900; margin-top:2px;">❤️ ${liker.likeCount}</div>
+                        <div style="background:linear-gradient(145deg, rgba(0,255,204,0.08), rgba(0,0,0,0.6)); border:1px solid rgba(0,255,204,0.35); border-radius:14px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow: 0 6px 16px rgba(0,0,0,0.6); backdrop-filter:blur(6px);">
+                            <div style="position:absolute; top:6px; left:8px; font-size:11px; font-weight:900; color:#ffe600; text-shadow:0 0 8px rgba(255,230,0,0.8);">${medal}</div>
+                            <img src="${escapeHtml(img)}" style="width:48px; height:48px; border-radius:50%; border:2px solid #00ffcc; object-fit:cover; margin-top:10px; margin-bottom:6px; box-shadow:0 0 10px rgba(0,255,204,0.4);" onerror="this.src='${fallbackAvatar}'">
+                            <div style="color:#fff; font-size:11px; font-weight:800; width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 4px;" title="${escapeHtml(liker.nickname)}">${escapeHtml(liker.nickname)}</div>
+                            <div style="color:#00ffcc; font-size:12px; font-weight:900; margin-top:3px; background:rgba(0,255,204,0.12); padding:2px 8px; border-radius:999px; border:1px solid rgba(0,255,204,0.25);">❤️ ${liker.likeCount}</div>
                         </div>
                     `;
                 } else {
                     html += `
-                        <div style="background:rgba(0,0,0,0.2); border:1px dashed rgba(255,255,255,0.15); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.6; min-height:96px;">
-                            <div style="font-size:20px; margin-bottom:4px;">❤️</div>
-                            <div style="color:rgba(255,255,255,0.4); font-size:9px; font-weight:bold; text-align:center;">${i + 1}. Sıra Bekleniyor...</div>
+                        <div style="background:rgba(0,0,0,0.25); border:1px dashed rgba(255,255,255,0.15); border-radius:14px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.5; min-height:115px;">
+                            <div style="font-size:22px; margin-bottom:4px; opacity:0.7;">❤️</div>
+                            <div style="color:rgba(255,255,255,0.45); font-size:10px; font-weight:bold; text-align:center;">${i + 1}. Sıra Bekleniyor</div>
                         </div>
                     `;
                 }
