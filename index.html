@@ -66,11 +66,10 @@
             display: grid;
             grid-template-columns: repeat(var(--grid-cols), var(--card-width));
             gap: 10px;
-            padding: 16px;
+            padding: 12px 16px 4px;
             justify-content: center;
             align-content: flex-start;
-            flex: 1;
-            overflow-y: auto;
+            flex: 0 0 auto;
             margin-top: 4px;
         }
 
@@ -2828,45 +2827,57 @@
         }
 
         function sendTestLike(count = 15) {
-            const nicknames = ['Ahmet_TR', 'Mehmet99', 'Selin_FB', 'Can_GS', 'Burak_BJK', 'Elif_TS', 'Emre_1907', 'Deniz_FC'];
-            const randomNick = nicknames[Math.floor(Math.random() * nicknames.length)];
+            const sampleUsers = [
+                { name: 'Ali Esin', id: 'aliesin', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Ali' },
+                { name: 'Mehmet_99', id: 'mehmet99', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Mehmet' },
+                { name: 'Selin FB', id: 'selinfb', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Selin' },
+                { name: 'Can GS', id: 'cangs', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Can' },
+                { name: 'Burak BJK', id: 'burakbjk', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Burak' },
+                { name: 'Elif TS', id: 'elifts', img: 'https://api.dicebear.com/7.x/bottts/svg?seed=Elif' }
+            ];
+            const u = sampleUsers[Math.floor(Math.random() * sampleUsers.length)];
             const payload = {
-                nickname: randomNick,
-                uniqueId: randomNick.toLowerCase(),
-                profilePictureUrl: '',
+                nickname: u.name,
+                uniqueId: u.id,
+                profilePictureUrl: u.img,
                 likeCount: count
             };
 
             if (syncSocket && syncSocket.connected && currentToken) {
                 syncSocket.emit('send_like_event', {
                     token: currentToken,
-                    nickname: randomNick,
-                    profilePictureUrl: '',
+                    nickname: u.name,
+                    profilePictureUrl: u.img,
                     likeCount: count,
                     sessionId: SESSION_ID
                 });
             }
             handleLikeEvent(payload);
-            showToast(`❤️ TEST: ${randomNick} kişisinden +${count} beğeni geldi!`);
+            showToast(`❤️ TEST: ${u.name} kişisinden +${count} beğeni geldi!`);
         }
 
         function handleLikeEvent(data) {
             if (!data) return;
-            const id = String(data.uniqueId || data.nickname || ('anon_' + Math.random().toString(36).slice(2)));
+            const id = String(data.uniqueId || data.userId || data.nickname || ('u_' + Math.random().toString(36).slice(2))).trim();
+            const rawNick = String(data.nickname || data.uniqueId || 'İzleyici').replace(/[<>"]/g, '').trim();
+            const nick = rawNick || 'İzleyici';
+            const img = data.profilePictureUrl ? String(data.profilePictureUrl).trim() : '';
+
             if (!topLikers[id]) {
                 topLikers[id] = {
-                    nickname: data.nickname || 'İzleyici',
-                    profilePictureUrl: data.profilePictureUrl || '',
+                    nickname: nick,
+                    profilePictureUrl: img,
                     likeCount: 0
                 };
+            } else {
+                if (nick && nick !== 'İzleyici') {
+                    topLikers[id].nickname = nick;
+                }
+                if (img) {
+                    topLikers[id].profilePictureUrl = img;
+                }
             }
             topLikers[id].likeCount += Number(data.likeCount || 1) || 1;
-            if (data.profilePictureUrl && !topLikers[id].profilePictureUrl) {
-                topLikers[id].profilePictureUrl = data.profilePictureUrl;
-            }
-            if (data.nickname && (!topLikers[id].nickname || topLikers[id].nickname === 'İzleyici')) {
-                topLikers[id].nickname = data.nickname;
-            }
             renderTopLikers();
         }
 

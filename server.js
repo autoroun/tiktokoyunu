@@ -258,10 +258,26 @@ function bindTikTokEvents(connection) {
       data.userDetails?.profilePicture ||
       data.userDetails?.avatarThumb ||
       data.user?.profile_picture ||
-      data.user?.avatar_thumb
+      data.user?.avatar_thumb ||
+      data.user?.profilePictureUrl
     );
-    const nickname = data.nickname || data.userDetails?.nickname || data.user?.nickname || 'İzleyici';
-    const uniqueId = String(data.uniqueId || data.userId || data.user_id || data.userDetails?.uniqueId || nickname);
+    const nickname = String(
+      data.nickname ||
+      data.userDetails?.nickname ||
+      data.user?.nickname ||
+      data.userDetails?.uniqueId ||
+      data.user?.uniqueId ||
+      data.uniqueId ||
+      'İzleyici'
+    ).trim();
+    const uniqueId = String(
+      data.uniqueId ||
+      data.userId ||
+      data.user_id ||
+      data.user?.userId ||
+      data.userDetails?.userId ||
+      nickname
+    ).trim();
     const likeCount = Number(data.likeCount || data.like_count || 1) || 1;
     const totalLikeCount = Number(data.totalLikeCount || data.total_like_count || 0) || 0;
 
