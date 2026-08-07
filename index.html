@@ -3555,8 +3555,12 @@
                 oscillator.stop(audioUnlockCtx.currentTime + 0.02);
                 audioUnlocked = true;
                 
-                // Arka plan müziğini tetikle
-                playGlobalBgMusic();
+                // Müzik çaları başlat
+                if (anthemState.continuousLeaderAnthem) {
+                    updateContinuousLeaderAnthem();
+                } else {
+                    playGlobalBgMusic();
+                }
             } catch (err) {}
         }
 
@@ -3576,10 +3580,16 @@
             if (globalBgMusicAudio) {
                 try { globalBgMusicAudio.pause(); } catch(e) {}
             }
+            if (anthemResumeTimer) {
+                clearTimeout(anthemResumeTimer);
+                anthemResumeTimer = null;
+            }
 
             const leader = getTargetLeaderForAnthem();
             if (!leader || !leader.anthem) {
-                if (leaderAnthemAudio) stopLeaderAnthem(true, false);
+                if (leaderAnthemAudio && lastLeaderTeamId !== null) {
+                    try { leaderAnthemAudio.pause(); } catch(e) {}
+                }
                 return;
             }
 
@@ -3589,9 +3599,28 @@
                 return;
             }
 
-            playSpecificAnthem(leader, true);
-            if (leaderAnthemAudio) {
-                leaderAnthemAudio.loop = true;
+            try {
+                if (leaderAnthemAudio) {
+                    leaderAnthemAudio.pause();
+                    leaderAnthemAudio.currentTime = 0;
+                    leaderAnthemAudio.src = '';
+                }
+            } catch (e) {}
+
+            lastLeaderTeamId = leaderId;
+            try {
+                const audio = new Audio(leader.anthem);
+                audio.loop = true;
+                audio.preload = 'auto';
+                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
+                audio.muted = !!anthemState.mute;
+                leaderAnthemAudio = audio;
+                const p = audio.play();
+                if (p && typeof p.catch === 'function') {
+                    p.catch(err => console.warn('[CONTINUOUS ANTHEM] Play waiting for click:', err));
+                }
+            } catch (err) {
+                console.error('[CONTINUOUS ANTHEM] Error:', err);
             }
         }
 
@@ -3643,7 +3672,7 @@
             } catch (err) {}
             leaderAnthemAudio = null;
             if (resetLeader) lastLeaderTeamId = null;
-            if (resumeBg) {
+            if (resumeBg && !anthemState.continuousLeaderAnthem) {
                 bgMusicSuspendedByAnthem = false;
                 playGlobalBgMusic();
             }
@@ -4979,7 +5008,12 @@
             setTimeout(() => fireReminder(), 8000);
 
             document.getElementById('tech-panel').style.display = 'none';
-            playGlobalBgMusic();
+
+            if (anthemState.continuousLeaderAnthem) {
+                updateContinuousLeaderAnthem();
+            } else {
+                playGlobalBgMusic();
+            }
 
             if (autoConnectEnabled !== false) {
                 startAutoReconnectLoop();
