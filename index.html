@@ -3467,7 +3467,7 @@
             return getLeaderTeam();
         }
 
-        function stopLeaderAnthem(resetLeader = false) {
+        function stopLeaderAnthem(resetLeader = false, resumeBg = true) {
             try {
                 if (leaderAnthemAudio) {
                     leaderAnthemAudio.pause();
@@ -3477,8 +3477,10 @@
             } catch (err) {}
             leaderAnthemAudio = null;
             if (resetLeader) lastLeaderTeamId = null;
-            bgMusicSuspendedByAnthem = false;
-            playGlobalBgMusic();
+            if (resumeBg) {
+                bgMusicSuspendedByAnthem = false;
+                playGlobalBgMusic();
+            }
         }
 
         function syncAnthemControls() {
@@ -4107,9 +4109,7 @@
             if (delayMs > 0) {
                 anthemResumeTimer = setTimeout(() => {
                     anthemResumeTimer = null;
-                    stopLeaderAnthem(false);
-                    bgMusicSuspendedByAnthem = false;
-                    playGlobalBgMusic();
+                    stopLeaderAnthem(false, true);
                 }, delayMs);
             }
 
@@ -4118,7 +4118,7 @@
                 if (leader && leader.anthem) {
                     playSpecificAnthem(leader, forceRestart);
                 } else {
-                    stopLeaderAnthem(true);
+                    stopLeaderAnthem(true, true);
                 }
                 return;
             }
@@ -4136,13 +4136,13 @@
                 syncAnthemControls();
                 if (leaderAnthemAudio.paused) {
                     leaderAnthemAudio.play().catch(() => {
-                        stopLeaderAnthem(false);
+                        stopLeaderAnthem(false, true);
                     });
                 }
                 return;
             }
 
-            stopLeaderAnthem(false);
+            stopLeaderAnthem(false, false);
             lastLeaderTeamId = teamId;
             primeAudioPlayback();
 
@@ -4152,7 +4152,7 @@
                 audio.preload = 'auto';
                 audio.onerror = () => {
                     console.warn('[ANTHEM] Team anthem failed to load:', team.name);
-                    stopLeaderAnthem(true);
+                    stopLeaderAnthem(true, true);
                 };
                 audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 audio.muted = !!anthemState.mute;
@@ -4161,12 +4161,12 @@
                 if (playPromise && typeof playPromise.catch === 'function') {
                     playPromise.catch((err) => {
                         console.warn('[ANTHEM] Play error:', err);
-                        stopLeaderAnthem(false);
+                        stopLeaderAnthem(false, true);
                     });
                 }
             } catch (err) {
                 console.error('Anthem play error:', err);
-                stopLeaderAnthem(false);
+                stopLeaderAnthem(false, true);
             }
         }
 
