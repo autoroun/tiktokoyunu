@@ -2345,13 +2345,7 @@
 
         function debounceSave() {
             clearTimeout(saveTimer);
-            saveTimer = setTimeout(() => {
-                saveStateNow();
-                if (currentToken) {
-                    const state = getStoredStateObject();
-                    debounceSaveToServer(state);
-                }
-            }, 250);
+            saveTimer = setTimeout(saveStateNow, 180);
         }
 
         function serializeTeams() {
