@@ -1066,7 +1066,17 @@
 
         async function checkAccountOnLoad() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
-            const urlToken = pathParts[0] || null;
+            let urlToken = pathParts[0] || null;
+
+            // URL'de token yoksa yerel hafızadaki (localStorage) son token'a bak
+            if (!urlToken) {
+                const localToken = localStorage.getItem('account_token');
+                if (localToken && /^[a-f0-9]{10}$/.test(localToken)) {
+                    urlToken = localToken;
+                    history.replaceState(null, '', '/' + urlToken);
+                }
+            }
+
             if (urlToken && /^[a-f0-9]{10}$/.test(urlToken)) {
                 try {
                     const res = await fetch('/api/account/' + urlToken);
@@ -1074,11 +1084,13 @@
                         const data = await res.json();
                         currentToken = urlToken;
                         currentUsername = data.username;
+                        localStorage.setItem('account_token', currentToken);
+                        localStorage.setItem('account_username', currentUsername);
                         if (data.settings) applyServerSettings(data.settings);
                         if (data.assets) await applyServerAssets(data.assets);
                         await refreshFullUI();
                         initSettingsSync();
-                        return;
+                        return; // Modal kesinlikle açılmayacak, direkt hesaba girecek!
                     }
                 } catch (err) { console.error('checkAccountOnLoad error:', err); }
             }
@@ -1112,6 +1124,8 @@
                 if (!res.ok) { errorEl.textContent = data.error || 'Hata oluştu.'; btn.textContent = 'GİRİŞ YAP / HESAP OLUŞTUR'; btn.disabled = false; return; }
                 currentToken = data.token;
                 currentUsername = data.username;
+                localStorage.setItem('account_token', currentToken);
+                localStorage.setItem('account_username', currentUsername);
                 history.replaceState(null, '', '/' + currentToken);
                 if (data.settings) applyServerSettings(data.settings);
                 if (data.assets) await applyServerAssets(data.assets);

@@ -347,18 +347,39 @@ app.post('/api/account/login', (req, res) => {
 
 app.get('/api/account/:token', (req, res) => {
   const token = String(req.params.token || '').toLowerCase();
+  if (!/^[a-f0-9]{10}$/.test(token)) {
+    return res.status(400).json({ error: 'Geçersiz token formatı.' });
+  }
   const users = loadUsers();
+  if (!users[token]) {
+    users[token] = {
+      username: 'kullanici_' + token.slice(0, 4),
+      settings: null,
+      assets: null,
+      createdAt: new Date().toISOString()
+    };
+    saveUsers(users);
+  }
   const user = users[token];
-  if (!user) return res.status(404).json({ error: 'Hesap bulunamadı.' });
   return res.json({ username: user.username, settings: user.settings || null, assets: user.assets || null });
 });
 
 app.post('/api/account/:token/save', (req, res) => {
   const token = String(req.params.token || '').toLowerCase();
+  if (!/^[a-f0-9]{10}$/.test(token)) {
+    return res.status(400).json({ error: 'Geçersiz token formatı.' });
+  }
   const users = loadUsers();
-  if (!users[token]) return res.status(404).json({ error: 'Hesap bulunamadı.' });
+  if (!users[token]) {
+    users[token] = {
+      username: 'kullanici_' + token.slice(0, 4),
+      settings: null,
+      assets: null,
+      createdAt: new Date().toISOString()
+    };
+  }
   const { settings, assets, sessionId } = req.body || {};
-  users[token].settings = settings || null;
+  if (settings) users[token].settings = settings;
   if (assets && typeof assets === 'object') users[token].assets = assets;
   users[token].updatedAt = new Date().toISOString();
   saveUsers(users);
