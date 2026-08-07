@@ -1741,7 +1741,7 @@
                 if (settings.bgState) Object.assign(bgState, settings.bgState);
                 if (settings.giftSfxState) Object.assign(giftSfxState, settings.giftSfxState);
                 if (settings.bgMusicState) Object.assign(bgMusicState, settings.bgMusicState);
-                if (settings.tiktokUsername) tiktokTargetUsername = settings.tiktokUsername;
+                if (typeof settings.tiktokUsername === 'string') tiktokTargetUsername = settings.tiktokUsername;
                 if (typeof settings.autoConnectEnabled === 'boolean') autoConnectEnabled = settings.autoConnectEnabled;
                 if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
                 if (settings.headerTitleText) headerTitleText = settings.headerTitleText;
@@ -2419,6 +2419,11 @@
                 Object.assign(bgState, state.bgState || {});
                 Object.assign(giftSfxState, state.giftSfxState || {});
                 Object.assign(bgMusicState, state.bgMusicState || {});
+                if (typeof state.tiktokUsername === 'string') tiktokTargetUsername = state.tiktokUsername;
+                if (typeof state.autoConnectEnabled === 'boolean') autoConnectEnabled = state.autoConnectEnabled;
+                if (typeof state.sortByScoreEnabled === 'boolean') sortByScoreEnabled = state.sortByScoreEnabled;
+                if (state.headerTitleText) headerTitleText = state.headerTitleText;
+                if (typeof state.headerAnimEnabled === 'boolean') headerAnimEnabled = state.headerAnimEnabled;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -2433,7 +2438,13 @@
 
         function applySavedUi() {
             const tInput = document.getElementById('tiktok-username');
-            if (tInput) tInput.value = tiktokTargetUsername || '';
+            if (tInput && document.activeElement !== tInput) {
+                tInput.value = tiktokTargetUsername || '';
+            }
+            const saveBtn = document.getElementById('btn-save-username');
+            if (saveBtn) {
+                saveBtn.style.display = tiktokTargetUsername ? 'inline-flex' : 'none';
+            }
             const autoCb = document.getElementById('auto-connect-enabled');
             if (autoCb) autoCb.checked = autoConnectEnabled !== false;
             const sortScoreCb = document.getElementById('sort-by-score-enabled');
@@ -4235,7 +4246,7 @@
         function onTikTokUsernameInput(val) {
             tiktokTargetUsername = String(val || '').trim().replace(/^@+/, '');
             const saveBtn = document.getElementById('btn-save-username');
-            if (saveBtn) saveBtn.style.display = tiktokTargetUsername ? 'inline-flex' : 'none';
+            if (saveBtn) saveBtn.style.display = 'inline-flex';
         }
 
         function updateTikTokUsernameInput(val) {
@@ -4247,6 +4258,7 @@
             const val = inputEl ? String(inputEl.value || '').trim().replace(/^@+/, '') : tiktokTargetUsername;
             tiktokTargetUsername = val;
             saveStateNow();
+            debounceSave();
             const saveBtn = document.getElementById('btn-save-username');
             if (saveBtn) {
                 saveBtn.textContent = '✅ KAYDEDİLDİ';
@@ -4255,7 +4267,7 @@
                     saveBtn.style.display = tiktokTargetUsername ? 'inline-flex' : 'none';
                 }, 1500);
             }
-            showToast(`TikTok kullanıcı adı kaydedildi: @${tiktokTargetUsername}`);
+            showToast(`TikTok kullanıcı adı başarıyla kaydedildi: @${tiktokTargetUsername}`);
         }
 
         function updateAutoConnectSetting(enabled) {
