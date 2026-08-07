@@ -1839,7 +1839,7 @@
                     <img src="${escapeHtml(team.logo)}" class="team-logo" id="logo-view-${index}" alt="${escapeHtml(team.name)}">
                     <div class="score" id="score-view-${index}">${team.score}</div>
                     <div class="team-name" id="name-view-${index}">${escapeHtml(team.name)}</div>
-                    <div class="team-gift-badge ${gift ? '' : 'empty'}" id="gift-view-${index}">${giftBadge}</div>
+                    <div class="team-gift-badge ${gift ? '' : 'empty'}" id="gift-view-${index}" onclick="sendTestGift(${index})" style="cursor:pointer;" title="Tıkla: Hediyeyi Gönder">${giftBadge}</div>
                 `;
                 container.appendChild(card);
             });
@@ -1868,6 +1868,7 @@
                         <input type="text" readonly value="${escapeHtml(giftText)}" class="gift-picker-trigger ${team.selectedGiftId ? 'has-value' : ''}" onclick="openGiftPicker(${index})">
                         <button class="btn btn-secondary" onclick="openGiftPicker(${index})">SEÇ</button>
                         <button class="btn btn-danger" onclick="clearTeamGift(${index})">TEMİZLE</button>
+                        <button type="button" class="btn btn-accent" style="font-size:9px;padding:6px 10px;white-space:nowrap;" onclick="sendTestGift(${index})" title="Test olarak bu hediyeyi takıma gönderir ve puan kazandırır">🎁 TEST ET</button>
                     </div>
                     <div class="mini-help">Bu takıma ait özel hediye burada seçilir. İzleyici bu hediyeyi gönderdiğinde puan doğrudan bu takıma eklenir.</div>
                     <div class="grid grid-cols-2 gap-2 mt-3">
@@ -1995,6 +1996,18 @@
             renderGame();
             renderTeamEditors();
             debounceSave();
+        }
+
+        function sendTestGift(index) {
+            if (!teams[index]) return;
+            const team = teams[index];
+            const gift = getSelectedGiftMeta(team);
+            const pts = gift ? (Number(gift.diamondCount || 1) || 1) : 1;
+            const giftName = gift ? gift.name : 'Test Hediyesi';
+
+            givePoint(index, pts);
+
+            showToast(`🎁 TEST: ${team.name} takımına "${giftName}" gönderildi! (+${pts} puan)`);
         }
 
         function updateTeamData(index, field, value) {
