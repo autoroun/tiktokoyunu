@@ -1782,16 +1782,39 @@
             }
         }
 
-        function applyServerSettings(settings) {
+        function applyServerSettings(settings, isExplicitReset = false) {
             if (!settings) return;
             try {
                 if (settings.teamCount) teamCount = clampTeamCount(settings.teamCount);
                 if (Array.isArray(settings.teams)) {
-                    teams = [];
+                    while (teams.length < teamCount) {
+                        teams.push(makeDefaultTeam(teams.length + 1));
+                    }
+                    if (teams.length > teamCount) {
+                        teams = teams.slice(0, teamCount);
+                    }
                     for (let i = 0; i < teamCount; i++) {
-                        const t = normalizeTeam(settings.teams[i], i);
-                        t.score = settings.teams[i] ? (Number(settings.teams[i].score || 0) || 0) : 0;
-                        teams.push(t);
+                        const newT = settings.teams[i];
+                        if (!newT) continue;
+                        if (!teams[i]) teams[i] = makeDefaultTeam(i + 1);
+                        
+                        teams[i].name = newT.name || teams[i].name;
+                        if (newT.logo) teams[i].logo = newT.logo;
+                        if (newT.logoAssetKey) teams[i].logoAssetKey = newT.logoAssetKey;
+                        if (newT.logoFileName) teams[i].logoFileName = newT.logoFileName;
+                        if (newT.giftId !== undefined) teams[i].giftId = newT.giftId;
+                        if (newT.anthem !== undefined) teams[i].anthem = newT.anthem;
+                        if (newT.anthemAssetKey !== undefined) teams[i].anthemAssetKey = newT.anthemAssetKey;
+                        if (newT.anthemFileName !== undefined) teams[i].anthemFileName = newT.anthemFileName;
+
+                        const incomingScore = Number(newT.score || 0) || 0;
+                        const currentScore = Number(teams[i].score || 0) || 0;
+
+                        if (isExplicitReset) {
+                            teams[i].score = incomingScore;
+                        } else {
+                            teams[i].score = Math.max(currentScore, incomingScore);
+                        }
                     }
                 }
                 if (Array.isArray(settings.giftCatalog)) giftCatalog = settings.giftCatalog;
@@ -1855,15 +1878,15 @@
             return assets;
         }
 
-        // Sunucu hesabına tam ve doğrudan kayıt (otomatik & anlık)
-        async function saveToServer(state) {
+        // Sunucu hesabına tam ve doğrudan kayıt
+        async function saveToServer(state, isReset = false) {
             if (!currentToken || !state) return;
             try {
                 const assets = await collectAllAssets();
                 const resp = await fetch('/api/account/' + currentToken + '/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ settings: state, assets, sessionId: SESSION_ID })
+                    body: JSON.stringify({ settings: state, assets, sessionId: SESSION_ID, isReset })
                 });
                 if (!resp.ok && resp.status === 413) {
                     console.warn('[SAVE] Bazı dosyalar çok büyük olduğu için sunucuya iletilemedi.');
@@ -1936,6 +1959,28 @@
                 if (!data || !data.nickname) return;
                 if (data.sessionId === SESSION_ID) return;
                 handleLikeEvent(data);
+            });
+
+            syncSocket.on('score_updated_received', (data) => {
+                if (!data || data.teamIndex === undefined) return;
+                if (data.sessionId === SESSION_ID) return;
+                const idx = Number(data.teamIndex);
+                const newScore = Number(data.newScore || 0) || 0;
+                if (teams[idx]) {
+                    teams[idx].score = Math.max(teams[idx].score, newScore);
+                    const scoreView = document.getElementById(`score-view-${idx}`);
+                    if (scoreView) scoreView.innerText = String(teams[idx].score);
+                    updateCardOrders();
+                }
+            });
+
+            syncSocket.on('reset_scores_received', (data) => {
+                if (data && data.sessionId === SESSION_ID) return;
+                teams.forEach(t => { t.score = 0; });
+                topLikers = {};
+                renderGame();
+                saveStateNow();
+                showToast('Tüm takımların puanları 0 olarak sıfırlandı! 🔄');
             });
         }
 
@@ -4123,7 +4168,11 @@
             stopLeaderAnthem(true);
             renderGame();
             saveStateNow();
-            debounceSave();
+            if (syncSocket && syncSocket.connected && currentToken) {
+                syncSocket.emit('reset_scores_event', { token: currentToken, sessionId: SESSION_ID });
+            }
+            const state = getStoredStateObject();
+            saveToServer(state, true);
             showToast('Tüm takımların puanları 0 olarak sıfırlandı! 🔄');
         }
 
@@ -4277,6 +4326,15 @@
             teams[index].score += add;
             const scoreView = document.getElementById(`score-view-${index}`);
             if (scoreView) scoreView.innerText = String(teams[index].score);
+
+            if (syncSocket && syncSocket.connected && currentToken) {
+                syncSocket.emit('score_updated_event', {
+                    token: currentToken,
+                    teamIndex: index,
+                    newScore: teams[index].score,
+                    sessionId: SESSION_ID
+                });
+            }
 
             // 1. Şimşek & Elektrik Görsel Efekti
             triggerLightningStrike(index);

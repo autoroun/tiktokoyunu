@@ -372,6 +372,38 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('score_updated_event', (payload) => {
+    const { token, teamIndex, newScore, sessionId } = payload || {};
+    if (token && /^[a-f0-9]{10}$/.test(token)) {
+      const users = loadUsers();
+      if (users[token] && users[token].settings && Array.isArray(users[token].settings.teams)) {
+        const idx = Number(teamIndex);
+        if (users[token].settings.teams[idx]) {
+          const cur = Number(users[token].settings.teams[idx].score || 0) || 0;
+          users[token].settings.teams[idx].score = Math.max(cur, Number(newScore || 0) || 0);
+          saveUsers(users);
+        }
+      }
+      io.to('account:' + token).emit('score_updated_received', {
+        teamIndex,
+        newScore,
+        sessionId
+      });
+    }
+  });
+
+  socket.on('reset_scores_event', (payload) => {
+    const { token, sessionId } = payload || {};
+    if (token && /^[a-f0-9]{10}$/.test(token)) {
+      const users = loadUsers();
+      if (users[token] && users[token].settings && Array.isArray(users[token].settings.teams)) {
+        users[token].settings.teams.forEach(t => { if (t) t.score = 0; });
+        saveUsers(users);
+      }
+      io.to('account:' + token).emit('reset_scores_received', { sessionId });
+    }
+  });
+
   socket.on('client_log_error', (logEntry) => {
     console.error('[CLIENT LOG ERROR]', new Date().toISOString(), logEntry);
   });
@@ -446,13 +478,31 @@ app.post('/api/account/:token/save', (req, res) => {
       createdAt: new Date().toISOString()
     };
   }
-  const { settings, assets, sessionId } = req.body || {};
-  if (settings) users[token].settings = settings;
+  const { settings, assets, sessionId, isReset } = req.body || {};
+  if (settings) {
+    if (!users[token].settings || isReset) {
+      users[token].settings = settings;
+    } else {
+      const currentServerSettings = users[token].settings;
+      if (Array.isArray(settings.teams) && Array.isArray(currentServerSettings.teams)) {
+        for (let i = 0; i < settings.teams.length; i++) {
+          const sT = settings.teams[i];
+          const cT = currentServerSettings.teams[i];
+          if (sT && cT) {
+            const incomingScore = Number(sT.score || 0) || 0;
+            const existingScore = Number(cT.score || 0) || 0;
+            sT.score = Math.max(existingScore, incomingScore);
+          }
+        }
+      }
+      users[token].settings = settings;
+    }
+  }
   if (assets && typeof assets === 'object') users[token].assets = assets;
   users[token].updatedAt = new Date().toISOString();
   saveUsers(users);
   // Ayni odadaki diger cihazlara gercek zamanli bildir (kaydedeni haric)
-  io.to('account:' + token).emit('settings_updated', { settings, assets, sessionId });
+  io.to('account:' + token).emit('settings_updated', { settings: users[token].settings, assets, sessionId });
   return res.json({ ok: true });
 });
 
