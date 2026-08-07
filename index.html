@@ -80,11 +80,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: space-between;
             position: relative;
-            padding: 36px 8px 10px;
+            padding: 12px 6px 10px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.45);
             overflow: hidden;
+            box-sizing: border-box;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
@@ -140,11 +141,13 @@
         .team-logo {
             width: var(--logo-size);
             height: var(--logo-size);
+            max-height: 48%;
             border-radius: 50%;
             border: 2px solid #00ffcc;
-            margin-bottom: 6px;
-            object-fit: cover;
+            margin-bottom: 4px;
+            object-fit: contain;
             background: #111;
+            flex-shrink: 0;
         }
 
         .score {
@@ -159,7 +162,7 @@
         }
 
         .team-name {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 1000;
             letter-spacing: .08em;
             text-transform: uppercase;
@@ -173,6 +176,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            flex-shrink: 0;
+            z-index: 2;
+            margin: 2px 0;
         }
 
         .team-gift-badge {
@@ -1487,7 +1493,14 @@
                 if (!data || data.sessionId === SESSION_ID) return; // Kendi kaydettimizi yok say
                 if (data.settings) applyServerSettings(data.settings);
                 if (data.assets) await applyServerAssets(data.assets);
-                await refreshFullUI();
+                
+                const activeEl = document.activeElement;
+                const isTypingInMenu = activeEl && activeEl.closest && activeEl.closest('#settings-menu');
+                if (!isTypingInMenu) {
+                    await refreshFullUI();
+                } else {
+                    renderGame();
+                }
             });
         }
 
@@ -3409,9 +3422,15 @@
             manualDisconnect = false;
             connectRequested = true;
             isConnecting = true;
-            debounceSave();
+            if (!isAuto) debounceSave();
             updateConnectionStatus('status-pending', 'Bağlanıyor...');
             if (btn) btn.disabled = true;
+
+            if (socket && socket.connected) {
+                socket.emit('setTargetUser', user);
+                socket.emit('requestGiftCatalog', { force: false });
+                return;
+            }
 
             if (socket) {
                 try { socket.disconnect(); } catch (e) {}
@@ -3506,7 +3525,7 @@
                 })).filter(item => item.id);
                 renderCatalogSummary();
                 renderGiftPickerList();
-                debounceSave();
+                if (!isAuto) debounceSave();
             });
 
             socket.on('gift_catalog_error', (message) => {
