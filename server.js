@@ -314,6 +314,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('send_gift_event', (payload) => {
+    const { token, teamIndex, amount, giftName, nickname, sessionId } = payload || {};
+    if (token && /^[a-f0-9]{10}$/.test(token)) {
+      io.to('account:' + token).emit('gift_event_received', {
+        teamIndex,
+        amount,
+        giftName: giftName || 'Hediye',
+        nickname: nickname || 'İzleyici',
+        sessionId
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Istemci ayrildi.');
   });

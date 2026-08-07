@@ -1769,6 +1769,19 @@
                     renderGame();
                 }
             });
+
+            syncSocket.on('gift_event_received', (data) => {
+                if (!data || data.teamIndex === undefined) return;
+                const idx = Number(data.teamIndex);
+                const amt = Number(data.amount || 1) || 1;
+                const team = teams[idx];
+                const teamName = team ? team.name : `Takım #${idx + 1}`;
+
+                givePoint(idx, amt);
+                if (data.sessionId !== SESSION_ID) {
+                    showToast(`🎁 CANLI HEDİYE: ${escapeHtml(teamName)} takımına "${escapeHtml(data.giftName || 'Hediye')}" geldi! (+${amt} puan)`);
+                }
+            });
         }
 
         function debounceSaveToServer(state) {
@@ -2708,9 +2721,19 @@
             const pts = gift ? (Number(gift.diamondCount || 1) || 1) : 1;
             const giftName = gift ? gift.name : 'Test Hediyesi';
 
-            givePoint(index, pts);
-
-            showToast(`🎁 TEST: ${team.name} takımına "${giftName}" gönderildi! (+${pts} puan)`);
+            if (syncSocket && syncSocket.connected && currentToken) {
+                syncSocket.emit('send_gift_event', {
+                    token: currentToken,
+                    teamIndex: index,
+                    amount: pts,
+                    giftName,
+                    nickname: 'Test',
+                    sessionId: SESSION_ID
+                });
+            } else {
+                givePoint(index, pts);
+                showToast(`🎁 TEST: ${team.name} takımına "${giftName}" gönderildi! (+${pts} puan)`);
+            }
         }
 
         function updateTeamData(index, field, value) {
