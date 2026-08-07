@@ -771,6 +771,66 @@
             .reminder-card .msg { font-size: 18px; }
         }
 
+        /* Lightning & Electric Goal FX */
+        #lightning-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        .flash-screen {
+            animation: flashBg 0.15s ease-out forwards;
+        }
+
+        @keyframes flashBg {
+            0% { background: rgba(0, 255, 204, 0.45); }
+            100% { background: transparent; }
+        }
+
+        .team-card.electric-hit {
+            animation: electricBoost 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+            z-index: 100 !important;
+            border-color: #00ffcc !important;
+            box-shadow: 0 0 30px #00ffcc, 0 0 65px rgba(0,255,204,0.95), inset 0 0 25px rgba(0,255,204,0.7) !important;
+        }
+
+        @keyframes electricBoost {
+            0% { transform: scale(1) translateY(0); }
+            20% { transform: scale(1.22) translateY(-12px) rotate(-1.5deg); filter: brightness(1.6); }
+            40% { transform: scale(1.18) translateY(-10px) rotate(1.5deg); }
+            60% { transform: scale(1.12) translateY(-6px); }
+            100% { transform: scale(1) translateY(0); filter: brightness(1); }
+        }
+
+        .team-card.electric-hit::after {
+            content: "";
+            position: absolute;
+            inset: -6px;
+            border-radius: inherit;
+            border: 2px dashed #00ffcc;
+            animation: electricBorder 0.4s linear infinite;
+            pointer-events: none;
+            box-shadow: 0 0 20px #00ffff;
+        }
+
+        @keyframes electricBorder {
+            0% { opacity: 1; transform: scale(1); filter: hue-rotate(0deg); }
+            50% { opacity: 0.6; transform: scale(1.04); filter: hue-rotate(90deg); }
+            100% { opacity: 1; transform: scale(1); filter: hue-rotate(0deg); }
+        }
+
+        .team-card.earthquake-shake {
+            animation: earthShake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes earthShake {
+            10%, 90% { transform: translate3d(-3px, 1px, 0) rotate(-0.8deg); }
+            20%, 80% { transform: translate3d(4px, -2px, 0) rotate(1.2deg); }
+            30%, 50%, 70% { transform: translate3d(-5px, 4px, 0) rotate(-1.2deg); }
+            40%, 60% { transform: translate3d(5px, -3px, 0) rotate(1.2deg); }
+        }
+
         header.top-hud {
             margin-top: 44px;
         }
@@ -787,6 +847,10 @@
         </div>
     </div>
     <div id="app-background-overlay" style="position:fixed;inset:0;z-index:-1;pointer-events:none;background:rgba(0,0,0,0.4);transition:background .2s;"></div>
+
+    <!-- ── ŞİMŞEK & ELEKTRİK KATMANI ──────────────────────────── -->
+    <div id="lightning-overlay"></div>
+    <svg id="lightning-svg" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;"></svg>
 
     <!-- ── GİRİŞ MODAL ────────────────────────────────────────── -->
     <div id="login-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;">
@@ -2621,18 +2685,98 @@
             }
         }
 
+        function triggerLightningStrike(index) {
+            const cardEl = document.getElementById(`card-view-${index}`);
+            if (!cardEl) return;
+
+            const rect = cardEl.getBoundingClientRect();
+            const targetX = rect.left + rect.width / 2;
+            const targetY = rect.top + rect.height / 3;
+
+            const svg = document.getElementById('lightning-svg');
+            if (svg) {
+                const startX = targetX + (Math.random() * 120 - 60);
+                const startY = 0;
+
+                let currentX = startX;
+                let currentY = startY;
+                const points = [`${currentX},${currentY}`];
+
+                const segments = 14;
+                const dy = (targetY - startY) / segments;
+
+                for (let i = 1; i < segments; i++) {
+                    currentY += dy;
+                    const jitter = (Math.random() - 0.5) * 50;
+                    currentX += (targetX - currentX) * 0.16 + jitter;
+                    points.push(`${currentX},${currentY}`);
+                }
+                points.push(`${targetX},${targetY}`);
+
+                const pathData = 'M ' + points.join(' L ');
+
+                const pathGlow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathGlow.setAttribute('d', pathData);
+                pathGlow.setAttribute('stroke', '#00ffcc');
+                pathGlow.setAttribute('stroke-width', '8');
+                pathGlow.setAttribute('fill', 'none');
+                pathGlow.setAttribute('filter', 'drop-shadow(0 0 15px #00ffff) drop-shadow(0 0 30px #ffffff)');
+                pathGlow.style.opacity = '1';
+                pathGlow.style.transition = 'opacity 0.25s ease-out';
+
+                const pathCore = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathCore.setAttribute('d', pathData);
+                pathCore.setAttribute('stroke', '#ffffff');
+                pathCore.setAttribute('stroke-width', '3');
+                pathCore.setAttribute('fill', 'none');
+                pathCore.style.opacity = '1';
+                pathCore.style.transition = 'opacity 0.25s ease-out';
+
+                svg.appendChild(pathGlow);
+                svg.appendChild(pathCore);
+
+                setTimeout(() => {
+                    pathGlow.style.opacity = '0';
+                    pathCore.style.opacity = '0';
+                    setTimeout(() => { pathGlow.remove(); pathCore.remove(); }, 250);
+                }, 140);
+            }
+
+            const overlay = document.getElementById('lightning-overlay');
+            if (overlay) {
+                overlay.classList.remove('flash-screen');
+                void overlay.offsetWidth;
+                overlay.classList.add('flash-screen');
+            }
+
+            cardEl.classList.remove('electric-hit');
+            void cardEl.offsetWidth;
+            cardEl.classList.add('electric-hit');
+            setTimeout(() => cardEl.classList.remove('electric-hit'), 650);
+
+            teams.forEach((_, i) => {
+                if (i !== index) {
+                    const otherCard = document.getElementById(`card-view-${i}`);
+                    if (otherCard) {
+                        otherCard.classList.remove('earthquake-shake');
+                        void otherCard.offsetWidth;
+                        otherCard.classList.add('earthquake-shake');
+                        setTimeout(() => otherCard.classList.remove('earthquake-shake'), 450);
+                    }
+                }
+            });
+        }
+
         function givePoint(index, amount) {
             if (!teams[index]) return;
             const add = Number(amount || 0) || 0;
             if (add <= 0) return;
             teams[index].score += add;
             const scoreView = document.getElementById(`score-view-${index}`);
-            const cardView = document.getElementById(`card-view-${index}`);
             if (scoreView) scoreView.innerText = String(teams[index].score);
-            if (cardView) {
-                cardView.classList.add('pumping');
-                setTimeout(() => cardView.classList.remove('pumping'), 300);
-            }
+
+            triggerLightningStrike(index);
+
             playLeaderAnthemIfNeeded(false, index);
             debounceSave();
         }
