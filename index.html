@@ -951,7 +951,7 @@
         <div class="setting-section border border-blue-500/30">
             <h3 class="text-[10px] font-bold text-blue-400 mb-4">TIKTOK CANLI YAYIN BAĞLANTISI</h3>
             <div class="flex flex-col gap-2">
-                <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)">
+                <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)" oninput="updateTikTokUsernameInput(this.value)">
                 <div class="flex gap-2 items-center">
                     <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">BAĞLAN</button>
                     <div id="connection-log" class="status-none">Bağlantı Yok</div>
@@ -1260,6 +1260,7 @@
         let serverSaveTimer = null;
         const SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
         let syncSocket = null;
+        let tiktokTargetUsername = '';
 
         async function checkAccountOnLoad() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -1355,6 +1356,7 @@
                 if (settings.anthemState) Object.assign(anthemState, settings.anthemState);
                 if (settings.bgState) Object.assign(bgState, settings.bgState);
                 if (settings.giftSfxState) Object.assign(giftSfxState, settings.giftSfxState);
+                if (settings.tiktokUsername) tiktokTargetUsername = settings.tiktokUsername;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -1769,6 +1771,7 @@
                     teams: serializeTeams(),
                     giftCatalog,
                     giftSortOrder,
+                    tiktokUsername: tiktokTargetUsername,
                     styleState: { ...styleState },
                     reminderState: { ...reminderState },
                     anthemState: { ...anthemState },
@@ -1938,7 +1941,8 @@
         }
 
         function applySavedUi() {
-            document.getElementById('tiktok-username').value = '';
+            const tInput = document.getElementById('tiktok-username');
+            if (tInput) tInput.value = tiktokTargetUsername || '';
             const giftSortSelect = document.getElementById('gift-sort-order');
             if (giftSortSelect) giftSortSelect.value = giftSortOrder;
 
@@ -3230,16 +3234,37 @@
             el.classList.add(type);
         }
 
-        function connectTikTok() {
+        let tiktokTargetUsername = '';
+        let reconnectTimer = null;
+        let isConnecting = false;
+
+        function updateTikTokUsernameInput(val) {
+            tiktokTargetUsername = String(val || '').trim().replace(/^@+/, '');
+            debounceSave();
+        }
+
+        function startAutoReconnectLoop() {
+            if (reconnectTimer) clearInterval(reconnectTimer);
+            reconnectTimer = setInterval(() => {
+                const username = tiktokTargetUsername || (document.getElementById('tiktok-username')?.value || '').trim().replace(/^@+/, '');
+                if (username && !isConnected && !manualDisconnect && !isConnecting) {
+                    updateConnectionStatus('status-pending', 'Otomatik Bağlanıyor...');
+                    connectTikTok(true);
+                }
+            }, 5000);
+        }
+
+        function connectTikTok(isAuto = false) {
             primeAudioPlayback();
-            const user = document.getElementById('tiktok-username').value.trim().replace(/^@+/, '');
+            const user = (document.getElementById('tiktok-username')?.value || tiktokTargetUsername || '').trim().replace(/^@+/, '');
+            tiktokTargetUsername = user;
             const btn = document.getElementById('btn-connect');
             if (!user) {
-                showToast('Önce TikTok kullanıcı adını girin.');
+                if (!isAuto) showToast('Önce TikTok kullanıcı adını girin.');
                 return;
             }
 
-            if (isConnected && socket) {
+            if (isConnected && socket && !isAuto) {
                 manualDisconnect = true;
                 connectRequested = false;
                 debounceSave();
@@ -3248,6 +3273,7 @@
                 stopLeaderAnthem(true);
                 socket = null;
                 isConnected = false;
+                isConnecting = false;
                 btn.textContent = 'BAĞLAN';
                 btn.className = 'btn btn-primary flex-1';
                 updateConnectionStatus('status-none', 'Bağlantı Yok');
@@ -3256,17 +3282,25 @@
 
             manualDisconnect = false;
             connectRequested = true;
+            isConnecting = true;
             debounceSave();
             updateConnectionStatus('status-pending', 'Bağlanıyor...');
-            btn.disabled = true;
+            if (btn) btn.disabled = true;
+
+            if (socket) {
+                try { socket.disconnect(); } catch (e) {}
+            }
 
             socket = io();
 
             socket.on('connect', () => {
                 isConnected = true;
-                btn.disabled = false;
-                btn.textContent = 'BAĞLANTIYI KES';
-                btn.className = 'btn btn-danger flex-1';
+                isConnecting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'BAĞLANTIYI KES';
+                    btn.className = 'btn btn-danger flex-1';
+                }
                 updateConnectionStatus('status-success', 'Bağlandı');
                 socket.emit('setTargetUser', user);
                 socket.emit('requestGiftCatalog', { force: false });
@@ -3274,16 +3308,31 @@
 
             socket.on('disconnect', () => {
                 isConnected = false;
-                btn.disabled = false;
-                btn.textContent = 'BAĞLAN';
-                btn.className = 'btn btn-primary flex-1';
+                isConnecting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'BAĞLAN';
+                    btn.className = 'btn btn-primary flex-1';
+                }
                 if (manualDisconnect || !connectRequested) {
                     updateConnectionStatus('status-none', 'Bağlantı Yok');
                 } else {
-                    updateConnectionStatus('status-error', 'Bağlantı Koptu');
+                    updateConnectionStatus('status-pending', 'Bağlantı Koptu (5s Yeniden Deneniyor...)');
                 }
                 stopLeaderAnthem(true);
-                manualDisconnect = false;
+            });
+
+            socket.on('connect_error', () => {
+                isConnected = false;
+                isConnecting = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'BAĞLAN';
+                    btn.className = 'btn btn-primary flex-1';
+                }
+                if (!manualDisconnect) {
+                    updateConnectionStatus('status-pending', 'Yeniden Deneniyor (5s)...');
+                }
             });
 
             socket.on('system_msg', (msg) => {
@@ -3581,9 +3630,12 @@
             setTimeout(() => fireReminder(), 8000);
 
             document.getElementById('tech-panel').style.display = 'none';
-            document.getElementById('tiktok-username').value = '';
-            updateConnectionStatus('status-none', 'Bağlantı Yok');
             playLeaderAnthemIfNeeded();
+
+            startAutoReconnectLoop();
+            if (tiktokTargetUsername && !manualDisconnect) {
+                connectTikTok(true);
+            }
         }
 
         window.addEventListener('beforeunload', saveStateNow);
