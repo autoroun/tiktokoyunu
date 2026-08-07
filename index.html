@@ -3781,7 +3781,7 @@
                 return;
             }
 
-            playSpecificAnthem(leader, forceRestart);
+            playSpecificAnthem(leader, true);
         }
 
         function updateLeaderAnthemContinuous(enabled) {
@@ -4287,11 +4287,15 @@
 
             if (leaderAnthemContinuous) {
                 const leader = getTopScoringTeam();
-                if (team.anthem) {
-                    playSpecificAnthem(team, forceRestart);
-                } else if (leader && leader.anthem) {
-                    playSpecificAnthem(leader, forceRestart);
+                if (!leader || !leader.anthem) return;
+
+                const leaderId = Number(leader.id || 0) || 0;
+                // Birinciye geçmedikleri sürece 1. takımın şarkısı ASLA değişmesin & kesilmesin!
+                if (lastLeaderTeamId === leaderId && leaderAnthemAudio && !leaderAnthemAudio.paused) {
+                    return;
                 }
+                // Sadece yeni bir takım 1. sırayı geçtiğinde veya marş çalmıyorsa yeni liderin şarkısına geç!
+                playSpecificAnthem(leader, true);
                 return;
             }
 
