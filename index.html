@@ -1859,19 +1859,19 @@
 
             syncSocket.on('gift_event_received', (data) => {
                 if (!data || data.teamIndex === undefined) return;
+                if (data.sessionId === SESSION_ID) return;
                 const idx = Number(data.teamIndex);
                 const amt = Number(data.amount || 1) || 1;
                 const team = teams[idx];
                 const teamName = team ? team.name : `Takım #${idx + 1}`;
 
                 givePoint(idx, amt);
-                if (data.sessionId !== SESSION_ID) {
-                    showToast(`🎁 CANLI HEDİYE: ${escapeHtml(teamName)} takımına "${escapeHtml(data.giftName || 'Hediye')}" geldi! (+${amt} puan)`);
-                }
+                showToast(`🎁 CANLI HEDİYE: ${escapeHtml(teamName)} takımına "${escapeHtml(data.giftName || 'Hediye')}" geldi! (+${amt} puan)`);
             });
 
             syncSocket.on('like_event_received', (data) => {
                 if (!data || !data.nickname) return;
+                if (data.sessionId === SESSION_ID) return;
                 handleLikeEvent(data);
             });
         }
@@ -2899,10 +2899,10 @@
                     nickname: 'Test',
                     sessionId: SESSION_ID
                 });
-            } else {
-                givePoint(index, pts);
-                showToast(`🎁 TEST: ${team.name} takımına "${giftName}" gönderildi! (+${pts} puan)`);
             }
+
+            givePoint(index, pts);
+            showToast(`🎁 TEST: ${team.name} takımına "${giftName}" gönderildi! (+${pts} puan)`);
         }
 
         function updateTeamData(index, field, value) {
