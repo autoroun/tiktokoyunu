@@ -3719,9 +3719,11 @@
         let bgMusicSuspendedByAnthem = false;
 
         function playGlobalBgMusic() {
-            bgMusicSuspendedByAnthem = false;
-            if (!bgMusicState.enabled || bgMusicState.mute || !globalBgMusicDataUrl) return;
+            if (bgMusicSuspendedByAnthem) return;
             if (leaderAnthemAudio && !leaderAnthemAudio.paused) return;
+            if (previewAnthemAudio && !previewAnthemAudio.paused) return;
+            if (!bgMusicState.enabled || bgMusicState.mute || !globalBgMusicDataUrl) return;
+
             primeAudioPlayback();
             if (!globalBgMusicAudio) {
                 globalBgMusicAudio = new Audio(globalBgMusicDataUrl);
@@ -3740,7 +3742,7 @@
             if (globalBgMusicAudio) {
                 try { globalBgMusicAudio.pause(); } catch(e) {}
             }
-            if (ytPlayer && typeof ytPlayer.mute === 'function' && !bgState.ytMute) {
+            if (ytPlayer && typeof ytPlayer.mute === 'function') {
                 try { ytPlayer.mute(); } catch(e) {}
             }
         }
@@ -3892,17 +3894,19 @@
             if (!teams[index]) return;
             const team = teams[index];
 
-            pauseGlobalBgMusic();
-
             if (anthemResumeTimer) {
                 clearTimeout(anthemResumeTimer);
                 anthemResumeTimer = null;
             }
 
+            pauseGlobalBgMusic();
+
             const delayMs = (Number(bgMusicState.resumeDelaySec) || 60) * 1000;
             if (delayMs > 0) {
                 anthemResumeTimer = setTimeout(() => {
+                    anthemResumeTimer = null;
                     stopLeaderAnthem(false);
+                    bgMusicSuspendedByAnthem = false;
                     playGlobalBgMusic();
                 }, delayMs);
             }
@@ -3925,19 +3929,6 @@
             const sameTeam = lastLeaderTeamId === teamId;
 
             pauseGlobalBgMusic();
-
-            if (anthemResumeTimer) {
-                clearTimeout(anthemResumeTimer);
-                anthemResumeTimer = null;
-            }
-
-            const delayMs = (Number(bgMusicState.resumeDelaySec) || 60) * 1000;
-            if (delayMs > 0) {
-                anthemResumeTimer = setTimeout(() => {
-                    stopLeaderAnthem(false);
-                    playGlobalBgMusic();
-                }, delayMs);
-            }
 
             if (sameTeam && leaderAnthemAudio && !forceRestart) {
                 syncAnthemControls();
