@@ -184,6 +184,10 @@
             margin: 2px 0;
         }
 
+        #game-container.hide-team-names .team-name {
+            display: none !important;
+        }
+
         .team-gift-badge {
             margin-top: 10px;
             width: 100%;
@@ -1235,6 +1239,10 @@
                     <input id="sort-by-score-enabled" type="checkbox" checked onchange="updateSortByScoreSetting(this.checked)">
                     🏆 Lider Takım (En Yüksek Puanlı) En Öne Geçsin
                 </label>
+                <label class="flex items-center gap-2 text-[10px] text-cyan-300 font-bold cursor-pointer">
+                    <input id="hide-team-names-checkbox" type="checkbox" onchange="updateHideTeamNamesSetting(this.checked)">
+                    🙈 Takım İsimlerini Gizle (Yalnızca Logo & Puan Göster)
+                </label>
                 <label class="flex items-center gap-2 text-[10px] text-emerald-300 font-bold cursor-pointer">
                     <input id="style-float-enabled" type="checkbox" checked onchange="updateFloatSetting('enabled', this.checked)">
                     🌊 Durgun Kart Süzülme / Sallanma Efekti
@@ -1710,6 +1718,7 @@
         let tiktokTargetUsername = '';
         let autoConnectEnabled = true;
         let sortByScoreEnabled = true;
+        let hideTeamNames = false;
         let headerTitleText = 'ŞAMPİYON KİM?';
         let headerAnimEnabled = true;
         let topLikers = {};
@@ -1846,6 +1855,7 @@
                 if (typeof settings.tiktokUsername === 'string') tiktokTargetUsername = settings.tiktokUsername;
                 if (typeof settings.autoConnectEnabled === 'boolean') autoConnectEnabled = settings.autoConnectEnabled;
                 if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
+                if (typeof settings.hideTeamNames === 'boolean') hideTeamNames = settings.hideTeamNames;
                 if (settings.headerTitleText) headerTitleText = settings.headerTitleText;
                 if (typeof settings.headerAnimEnabled === 'boolean') headerAnimEnabled = settings.headerAnimEnabled;
                 if (settings.headerStyleState) Object.assign(headerStyleState, settings.headerStyleState);
@@ -2375,6 +2385,7 @@
                     tiktokUsername: tiktokTargetUsername,
                     autoConnectEnabled,
                     sortByScoreEnabled,
+                    hideTeamNames: Boolean(hideTeamNames),
                     headerTitleText,
                     headerAnimEnabled,
                     styleState: { ...styleState },
@@ -2554,6 +2565,7 @@
                 if (typeof state.tiktokUsername === 'string') tiktokTargetUsername = state.tiktokUsername;
                 if (typeof state.autoConnectEnabled === 'boolean') autoConnectEnabled = state.autoConnectEnabled;
                 if (typeof state.sortByScoreEnabled === 'boolean') sortByScoreEnabled = state.sortByScoreEnabled;
+                if (typeof state.hideTeamNames === 'boolean') hideTeamNames = state.hideTeamNames;
                 if (state.headerTitleText) headerTitleText = state.headerTitleText;
                 if (typeof state.headerAnimEnabled === 'boolean') headerAnimEnabled = state.headerAnimEnabled;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
@@ -2581,6 +2593,7 @@
             if (autoCb) autoCb.checked = autoConnectEnabled !== false;
             const sortScoreCb = document.getElementById('sort-by-score-enabled');
             if (sortScoreCb) sortScoreCb.checked = sortByScoreEnabled !== false;
+            applyHideTeamNames();
 
             const hTitleInput = document.getElementById('header-title-input');
             if (hTitleInput) hTitleInput.value = headerTitleText || 'ŞAMPİYON KİM?';
@@ -2664,6 +2677,21 @@
             sortByScoreEnabled = Boolean(enabled);
             updateCardOrders();
             debounceSave();
+        }
+
+        function updateHideTeamNamesSetting(enabled) {
+            hideTeamNames = Boolean(enabled);
+            applyHideTeamNames();
+            debounceSave();
+        }
+
+        function applyHideTeamNames() {
+            const gc = document.getElementById('game-container');
+            if (gc) {
+                gc.classList.toggle('hide-team-names', hideTeamNames);
+            }
+            const cb = document.getElementById('hide-team-names-checkbox');
+            if (cb) cb.checked = Boolean(hideTeamNames);
         }
 
         function updateCardOrders() {
