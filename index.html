@@ -1259,10 +1259,15 @@
                     <div class="mt-3 pt-2 border-t border-yellow-500/20">
                         <div class="flex justify-between items-center text-[9px] mb-1">
                             <label class="font-bold text-yellow-300">⏱️ Video Değiştirme Süresi (Saniye):</label>
-                            <span id="yt-duration-val" class="font-bold text-yellow-200">Tamamını Oynat (0s)</span>
+                            <div class="flex items-center gap-1">
+                                <input id="yt-duration-num" type="number" min="0" max="3600" value="0" placeholder="0"
+                                    style="width:58px;font-size:10px;font-weight:bold;padding:2px 4px;background:rgba(255,255,255,0.08);border:1px solid rgba(234,179,8,0.4);border-radius:4px;color:#fef08a;text-align:center;"
+                                    oninput="updateBgParam('videoDurationSec', this.value)">
+                                <span class="text-[9px] font-bold text-yellow-200">sn</span>
+                            </div>
                         </div>
-                        <input id="yt-duration-slider" type="range" min="0" max="180" step="5" value="0" oninput="updateBgParam('videoDurationSec', this.value)">
-                        <div class="mini-help mt-0.5">0 = Video bitince diğerine geçer. Saniye seçilirse (ör: 15s) 15 saniye sonra sonraki videoya/başa geçer.</div>
+                        <input id="yt-duration-slider" type="range" min="0" max="300" step="5" value="0" oninput="updateBgParam('videoDurationSec', this.value)">
+                        <div class="mini-help mt-0.5">0 = Video bitince diğerine geçer. Saniyeyi kutucuğa elinizle yazabilir veya kaydırıcıyı kullanabilirsiniz.</div>
                     </div>
                 </div>
 
@@ -2933,7 +2938,11 @@
             if (key === 'mute') bgState.mute = !!val;
             if (key === 'volume') bgState.volume = Math.max(0, Math.min(100, Number(val) || 50));
             if (key === 'videoDurationSec') {
-                bgState.videoDurationSec = Math.max(0, Math.min(600, Number(val) || 0));
+                bgState.videoDurationSec = Math.max(0, Math.min(3600, Number(val) || 0));
+                const ytDurNum = document.getElementById('yt-duration-num');
+                const ytDurSlider = document.getElementById('yt-duration-slider');
+                if (ytDurNum && document.activeElement !== ytDurNum) ytDurNum.value = String(bgState.videoDurationSec);
+                if (ytDurSlider) ytDurSlider.value = String(Math.min(300, bgState.videoDurationSec));
                 resetVideoDurationTimer();
             }
             if (key === 'ytLoop') bgState.ytLoop = !!val;
@@ -2988,11 +2997,11 @@
             const ytLoop = document.getElementById('yt-video-loop');
             if (ytLoop) ytLoop.checked = bgState.ytLoop !== false;
 
-            const ytDurVal = document.getElementById('yt-duration-val');
+            const ytDurNum = document.getElementById('yt-duration-num');
             const ytDurSlider = document.getElementById('yt-duration-slider');
             const sec = Number(bgState.videoDurationSec || 0);
-            if (ytDurVal) ytDurVal.textContent = sec > 0 ? `${sec} saniye` : 'Tamamını Oynat (0s)';
-            if (ytDurSlider) ytDurSlider.value = String(sec);
+            if (ytDurNum && document.activeElement !== ytDurNum) ytDurNum.value = String(sec);
+            if (ytDurSlider) ytDurSlider.value = String(Math.min(300, sec));
 
             const ytMute = document.getElementById('yt-video-mute');
             if (ytMute) ytMute.checked = !!bgState.ytMute;
