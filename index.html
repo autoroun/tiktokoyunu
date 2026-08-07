@@ -1121,7 +1121,7 @@
         </div>
     </div>
 
-    <header class="top-hud p-4 flex justify-between items-center border-b border-white/10 bg-black/80 z-[110] backdrop-blur">
+    <header class="top-hud p-4 flex justify-between items-center border-b border-white/10 z-[110]" id="main-header-bar">
         <i class="fas fa-bars settings-trigger" onclick="toggleMenu()"></i>
         <h1 class="neon-title header-title-animated" id="main-header-title">ŞAMPİYON KİM?</h1>
         <div style="width:24px;"></div>
@@ -1210,15 +1210,26 @@
                 <input id="style-score-font" type="range" min="0.7" max="3.2" step="0.1" value="1.7" oninput="updateStyle('score-font', this.value + 'rem', 'f-val')">
             </div>
 
-            <div class="mt-4 pt-3 border-t border-white/10 flex flex-col gap-3">
-                <div>
-                    <label class="text-[9px] text-white/60 font-bold block mb-1">ÜST BAŞLIK YAZISI</label>
-                    <input type="text" id="header-title-input" value="ŞAMPİYON KİM?" placeholder="Örn: ŞAMPİYON KİM?" style="width:100%;font-size:11px;font-weight:bold;padding:6px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,204,0.3);border-radius:6px;color:#fff;" oninput="updateHeaderTitleText(this.value)">
-                </div>
-                <label class="flex items-center gap-2 text-[10px] text-purple-300 font-bold cursor-pointer">
-                    <input id="header-anim-enabled" type="checkbox" checked onchange="updateHeaderAnimSetting(this.checked)">
-                    ✨ Başlık Yazısı Efektli Gidip Gelsin (Animasyon)
-                </label>
+                <div class="mt-4 pt-3 border-t border-white/10 flex flex-col gap-3">
+                    <div>
+                        <label class="text-[9px] text-white/60 font-bold block mb-1">ÜST BAŞLIK YAZISI</label>
+                        <input type="text" id="header-title-input" value="ŞAMPİYON KİM?" placeholder="Örn: ŞAMPİYON KİM?" style="width:100%;font-size:11px;font-weight:bold;padding:6px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,204,0.3);border-radius:6px;color:#fff;" oninput="updateHeaderTitleText(this.value)">
+                    </div>
+                    <div class="flex flex-col gap-2 pt-1 border-t border-white/10">
+                        <div class="text-[9px] text-cyan-300 font-bold tracking-wider uppercase">ÜST BAŞLIK BAR GÖRÜNÜMÜ</div>
+                        <div>
+                            <label>Arka Plan Şeffaflığı: <span id="header-opacity-val">85%</span></label>
+                            <input id="header-bg-opacity" type="range" min="0" max="100" value="85" oninput="updateHeaderStyle('opacity', this.value)">
+                        </div>
+                        <div>
+                            <label>Bulanıklık Efekti (Blur): <span id="header-blur-val">10px</span></label>
+                            <input id="header-blur-px" type="range" min="0" max="25" value="10" oninput="updateHeaderStyle('blur', this.value)">
+                        </div>
+                    </div>
+                    <label class="flex items-center gap-2 text-[10px] text-purple-300 font-bold cursor-pointer mt-1">
+                        <input id="header-anim-enabled" type="checkbox" checked onchange="updateHeaderAnimSetting(this.checked)">
+                        ✨ Başlık Yazısı Efektli Gidip Gelsin (Animasyon)
+                    </label>
                 <label class="flex items-center gap-2 text-[10px] text-yellow-300 font-bold cursor-pointer mt-1">
                     <input id="sort-by-score-enabled" type="checkbox" checked onchange="updateSortByScoreSetting(this.checked)">
                     🏆 Lider Takım (En Yüksek Puanlı) En Öne Geçsin
@@ -1629,6 +1640,48 @@
         const DB_STORE = 'files';
         const DEFAULT_REMINDER_TEXT = 'DESTEKLEMEK İSTEDİĞİN TAKIMIN HEDİYESİNİ GÖNDER';
 
+        const headerStyleState = {
+            bgOpacity: 85,
+            blur: 10
+        };
+
+        function updateHeaderStyle(type, val) {
+            if (type === 'opacity') {
+                headerStyleState.bgOpacity = Math.max(0, Math.min(100, Number(val) || 0));
+            } else if (type === 'blur') {
+                headerStyleState.blur = Math.max(0, Math.min(30, Number(val) || 0));
+            }
+            applyHeaderStyle();
+            debounceSave();
+        }
+
+        function applyHeaderStyle() {
+            const headerEl = document.getElementById('main-header-bar');
+            if (!headerEl) return;
+            const op = (Number(headerStyleState.bgOpacity ?? 85) / 100);
+            const blurPx = Number(headerStyleState.blur ?? 10);
+            
+            headerEl.style.backgroundColor = `rgba(0, 0, 0, ${op})`;
+            headerEl.style.backdropFilter = `blur(${blurPx}px)`;
+            headerEl.style.webkitBackdropFilter = `blur(${blurPx}px)`;
+            
+            if (op === 0 && blurPx === 0) {
+                headerEl.style.borderBottomColor = 'transparent';
+            } else {
+                headerEl.style.borderBottomColor = 'rgba(255, 255, 255, 0.1)';
+            }
+
+            const opLabel = document.getElementById('header-opacity-val');
+            const blurLabel = document.getElementById('header-blur-val');
+            const opInput = document.getElementById('header-bg-opacity');
+            const blurInput = document.getElementById('header-blur-px');
+            
+            if (opLabel) opLabel.textContent = `${headerStyleState.bgOpacity}%`;
+            if (blurLabel) blurLabel.textContent = `${headerStyleState.blur}px`;
+            if (opInput) opInput.value = String(headerStyleState.bgOpacity);
+            if (blurInput) blurInput.value = String(headerStyleState.blur);
+        }
+
         // ── KULLANICI HESABI SİSTEMİ ──────────────────────────────────
         let currentToken = null;
         let currentUsername = null;
@@ -1753,6 +1806,7 @@
                 if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
                 if (settings.headerTitleText) headerTitleText = settings.headerTitleText;
                 if (typeof settings.headerAnimEnabled === 'boolean') headerAnimEnabled = settings.headerAnimEnabled;
+                if (settings.headerStyleState) Object.assign(headerStyleState, settings.headerStyleState);
                 if (settings.topLikers) {
                     topLikers = { ...settings.topLikers };
                     renderTopLikers();
@@ -1762,6 +1816,7 @@
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
                 applyGridCols(teamCount);
                 applyBackground();
+                applyHeaderStyle();
                 syncBgControls();
                 syncGiftSfxControls();
             } catch (err) { console.error('applyServerSettings error:', err); }
@@ -2261,6 +2316,7 @@
                     bgState: { ...bgState },
                     giftSfxState: { ...giftSfxState },
                     bgMusicState: { ...bgMusicState },
+                    headerStyleState: { ...headerStyleState },
                     topLikers: { ...topLikers },
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -2425,6 +2481,7 @@
                 Object.assign(bgState, state.bgState || {});
                 Object.assign(giftSfxState, state.giftSfxState || {});
                 Object.assign(bgMusicState, state.bgMusicState || {});
+                Object.assign(headerStyleState, state.headerStyleState || {});
                 if (typeof state.tiktokUsername === 'string') tiktokTargetUsername = state.tiktokUsername;
                 if (typeof state.autoConnectEnabled === 'boolean') autoConnectEnabled = state.autoConnectEnabled;
                 if (typeof state.sortByScoreEnabled === 'boolean') sortByScoreEnabled = state.sortByScoreEnabled;
@@ -2475,6 +2532,8 @@
             setSliderFromStyle('card-height', 'h-val');
             setSliderFromStyle('logo-size', 'l-val');
             setSliderFromStyle('score-font', 'f-val');
+
+            applyHeaderStyle();
 
             document.getElementById('reminder-enabled').checked = reminderState.enabled !== false;
             document.getElementById('reminder-interval').value = String(reminderState.intervalSec || 60);

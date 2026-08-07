@@ -295,6 +295,12 @@ io.on('connection', (socket) => {
     const cleanUsername = String(username || '').trim().replace(/^@+/, '');
     if (!cleanUsername) return;
 
+    if (tiktokConnection && currentTargetUser === cleanUsername) {
+      console.log(`[TIKTOK] ${cleanUsername} yayınına zaten bağlı, yeni sekme/cihaz için bağlantı kesilmeden korundu.`);
+      broadcastConnectionInfo(socket);
+      return;
+    }
+
     if (tiktokConnection) {
       disconnectTikTokConnection('Eski TikTok baglantisi kapatildi.');
     }
