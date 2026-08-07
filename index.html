@@ -2117,7 +2117,7 @@
         function serializeTeams() {
             return teams.map(team => {
                 const copy = { ...team };
-                copy.score = 0;
+                copy.score = Number(team.score || 0) || 0;
                 if (copy.logoAssetKey && String(copy.logo || '').startsWith('data:')) {
                     copy.logo = '';
                 }
