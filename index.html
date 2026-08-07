@@ -3543,26 +3543,28 @@
         function primeAudioPlayback() {
             try {
                 const AC = window.AudioContext || window.webkitAudioContext;
-                if (!AC) {
-                    audioUnlocked = true;
-                    return;
+                if (AC) {
+                    if (!audioUnlockCtx) audioUnlockCtx = new AC();
+                    if (audioUnlockCtx.state === 'suspended') {
+                        audioUnlockCtx.resume().catch(() => {});
+                    }
                 }
-                if (!audioUnlockCtx) audioUnlockCtx = new AC();
-                if (audioUnlockCtx.state === 'suspended') {
-                    audioUnlockCtx.resume().catch(() => {});
-                }
-                const oscillator = audioUnlockCtx.createOscillator();
-                const gain = audioUnlockCtx.createGain();
-                gain.gain.value = 0.00001;
-                oscillator.connect(gain);
-                gain.connect(audioUnlockCtx.destination);
-                oscillator.start();
-                oscillator.stop(audioUnlockCtx.currentTime + 0.02);
                 audioUnlocked = true;
-                
-                // Arka plan müziğini tetikle
-                playGlobalBgMusic();
             } catch (err) {}
+        }
+
+        function startInitialPlayback() {
+            primeAudioPlayback();
+            if (leaderAnthemContinuous) {
+                checkAndUpdateLeaderAnthemContinuous(false);
+            } else {
+                const leader = getTopScoringTeam();
+                if (leader && leader.anthem) {
+                    playLeaderAnthemIfNeeded(false);
+                } else {
+                    playGlobalBgMusic();
+                }
+            }
         }
 
         function getLeaderTeam() {
@@ -4942,8 +4944,13 @@
                 debounceSave();
             });
 
-            ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(eventName => {
-                window.addEventListener(eventName, primeAudioPlayback, { passive: true, once: true });
+            const interactionEvents = ['pointerdown', 'touchstart', 'mousedown', 'keydown', 'click', 'wheel', 'mousemove'];
+            function onUserInteractionUnlock() {
+                startInitialPlayback();
+                interactionEvents.forEach(evt => window.removeEventListener(evt, onUserInteractionUnlock));
+            }
+            interactionEvents.forEach(evt => {
+                window.addEventListener(evt, onUserInteractionUnlock, { passive: true });
             });
         }
 
@@ -4956,7 +4963,9 @@
             setTimeout(() => fireReminder(), 8000);
 
             document.getElementById('tech-panel').style.display = 'none';
-            playGlobalBgMusic();
+
+            // Sayfa yüklendiği an müziği/marşı doğrudan başlat
+            startInitialPlayback();
 
             if (autoConnectEnabled !== false) {
                 startAutoReconnectLoop();
