@@ -256,7 +256,7 @@
         #settings-menu {
             position: fixed;
             top: 0;
-            left: -100%;
+            right: -100%;
             width: 100%;
             max-width: 440px;
             height: 100%;
@@ -265,12 +265,12 @@
             z-index: 1000;
             transition: 0.35s ease;
             padding: 20px;
-            border-right: 2px solid #00ffcc;
+            border-left: 2px solid #00ffcc;
             overflow-y: auto;
-            box-shadow: 15px 0 50px rgba(0,255,204,0.15), 30px 0 60px rgba(0,0,0,0.8);
+            box-shadow: -15px 0 50px rgba(0,255,204,0.15), -30px 0 60px rgba(0,0,0,0.8);
         }
 
-        #settings-menu.open { left: 0; }
+        #settings-menu.open { right: 0; }
 
         .setting-section {
             background: rgba(255,255,255,0.05);
@@ -1122,12 +1122,31 @@
     </div>
 
     <header class="top-hud p-4 flex justify-between items-center border-b border-white/10 z-[110]" id="main-header-bar">
-        <i class="fas fa-bars settings-trigger" onclick="toggleMenu()"></i>
+        <div style="width:36px;"></div>
         <h1 class="neon-title header-title-animated" id="main-header-title">ŞAMPİYON KİM?</h1>
-        <div style="width:24px;"></div>
+        <i class="fas fa-cog settings-trigger" onclick="toggleMenu()" title="Teknik Ayarlar" style="font-size:22px; cursor:pointer; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,0.5);"></i>
     </header>
 
     <div class="main-layout">
+        <div id="tiktok-main-control-bar" style="width:100%; max-width:1100px; margin:0 auto 16px auto; padding:10px 16px; background:rgba(0,0,0,0.65); backdrop-filter:blur(10px); border:1px solid rgba(0,255,204,0.25); border-radius:14px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:260px;">
+                <span style="color:#00ffcc; font-size:11px; font-weight:900; white-space:nowrap;">🎵 CANLI YAYIN:</span>
+                <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)" oninput="onTikTokUsernameInput(this.value)" style="flex:1; font-size:11px; font-weight:bold; padding:6px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(0,255,204,0.3); border-radius:8px; color:#fff;">
+                <button id="btn-save-username" onclick="saveTikTokUsername()" class="btn btn-accent" style="white-space:nowrap; padding:6px 10px; font-size:9px; display:none;">💾 KAYDET</button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary" style="font-size:10px; padding:6px 14px;">BAĞLAN</button>
+                <div id="connection-log" class="status-none" style="font-size:10px; padding:4px 10px; border-radius:8px;">Bağlantı Yok</div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="requestGiftCatalog(true)" class="btn btn-accent" style="font-size:10px; padding:6px 12px;">🎁 HEDİYE KATALOĞU ÇEK</button>
+                <button onclick="openGiftPicker(-1)" class="btn btn-secondary" style="font-size:10px; padding:6px 10px;">KATALOĞU AÇ</button>
+                <button type="button" onclick="triggerConnectCountdown()" class="btn btn-secondary" style="font-size:9px; padding:6px 8px;" title="Geri sayımı test et">⏱️ SAYAÇ TEST</button>
+            </div>
+        </div>
+
         <div id="game-container" class="game-grid"></div>
     </div>
 
@@ -1150,30 +1169,6 @@
                 </div>
                 <div class="mini-help">Bu URL ile herhangi bir cihazdan ayarlarınıza erişebilirsiniz.</div>
             </div>
-        </div>
-
-        <div class="setting-section border border-blue-500/30">
-            <h3 class="text-[10px] font-bold text-blue-400 mb-4">TIKTOK CANLI YAYIN BAĞLANTISI</h3>
-            <div class="flex flex-col gap-2">
-                <div class="flex gap-2 items-center">
-                    <input type="text" id="tiktok-username" placeholder="TikTok Kullanıcı Adı (@ olmadan)" oninput="onTikTokUsernameInput(this.value)" style="flex:1;">
-                    <button id="btn-save-username" onclick="saveTikTokUsername()" class="btn btn-accent" style="white-space:nowrap;padding:6px 12px;font-size:9px;display:none;">💾 KAYDET</button>
-                </div>
-                <div class="flex gap-2 items-center">
-                    <button onclick="connectTikTok()" id="btn-connect" class="btn btn-primary flex-1">BAĞLAN</button>
-                    <button type="button" onclick="triggerConnectCountdown()" class="btn btn-secondary" style="font-size:9px;padding:6px 10px;white-space:nowrap;" title="Geri sayımı test et">⏱️ SAYAÇ TEST</button>
-                    <div id="connection-log" class="status-none">Bağlantı Yok</div>
-                </div>
-                <label class="flex items-center gap-2 text-[10px] text-blue-300 font-bold cursor-pointer mt-1">
-                    <input id="auto-connect-enabled" type="checkbox" checked onchange="updateAutoConnectSetting(this.checked)">
-                    🔄 Otomatik Yeniden Bağlan (5s)
-                </label>
-                <div class="catalog-actions">
-                    <button onclick="requestGiftCatalog(true)" class="btn btn-accent flex-1">TR HEDİYE KATALOĞUNU ÇEK</button>
-                    <button onclick="openGiftPicker(-1)" class="btn btn-secondary flex-1">KATALOĞU AÇ</button>
-                </div>
-                <div id="catalog-summary" class="catalog-summary">Katalog bekleniyor.</div>
-                <div class="mini-help">Takım panelindeki hediye inputuna tıklayın. Canlıdan gelen katalog açılır; seçtiğiniz hediye o takıma bağlanır. İzleyici istediği takımın hediyesini göndererek o takıma direkt puan kazandırır.</div>
         </div>
 
         <div class="setting-section border border-red-500/30">
