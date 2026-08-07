@@ -3597,14 +3597,14 @@
         function stopLeaderAnthem(resetLeader = false, resumeBg = true) {
             try {
                 if (leaderAnthemAudio) {
+                    leaderAnthemAudio.onerror = null;
+                    leaderAnthemAudio.onended = null;
                     leaderAnthemAudio.pause();
-                    leaderAnthemAudio.currentTime = 0;
-                    leaderAnthemAudio.src = '';
                 }
             } catch (err) {}
             leaderAnthemAudio = null;
             if (resetLeader) lastLeaderTeamId = null;
-            if (resumeBg) {
+            if (resumeBg && !leaderAnthemContinuous) {
                 bgMusicSuspendedByAnthem = false;
                 playGlobalBgMusic();
             }
@@ -3763,7 +3763,7 @@
         }
 
         function checkAndUpdateLeaderAnthemContinuous(forceRestart = false) {
-            // Sürekli marş modunda: beraberlik de dahil en yüksek puanlı takımın marşını çal
+            if (!leaderAnthemContinuous) return;
             const leader = getTopScoringTeam();
             if (!leader || !leader.anthem) {
                 if (leaderAnthemAudio) stopLeaderAnthem(false, false);
@@ -3774,43 +3774,25 @@
             const sameLeader = lastLeaderTeamId === leaderId;
 
             if (sameLeader && leaderAnthemAudio && !forceRestart) {
+                syncAnthemControls();
                 if (leaderAnthemAudio.paused) {
                     leaderAnthemAudio.play().catch(() => {});
                 }
                 return;
             }
 
-            stopLeaderAnthem(false, false);
-            lastLeaderTeamId = leaderId;
-            primeAudioPlayback();
-
-            try {
-                const audio = new Audio(leader.anthem);
-                audio.loop = true;
-                audio.preload = 'auto';
-                audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
-                audio.muted = !!anthemState.mute;
-                leaderAnthemAudio = audio;
-                audio.play().catch(() => {});
-            } catch (err) {
-                console.error('[CONTINUOUS ANTHEM] Play error:', err);
-            }
+            playSpecificAnthem(leader, forceRestart);
         }
 
         function updateLeaderAnthemContinuous(enabled) {
             leaderAnthemContinuous = Boolean(enabled);
-            if (leaderAnthemContinuousTimer) {
-                clearInterval(leaderAnthemContinuousTimer);
-                leaderAnthemContinuousTimer = null;
+            if (anthemResumeTimer) {
+                clearTimeout(anthemResumeTimer);
+                anthemResumeTimer = null;
             }
             if (leaderAnthemContinuous) {
                 stopGlobalBgMusic();
-                if (anthemResumeTimer) { clearTimeout(anthemResumeTimer); anthemResumeTimer = null; }
                 checkAndUpdateLeaderAnthemContinuous(true);
-                leaderAnthemContinuousTimer = setInterval(() => {
-                    if (!leaderAnthemContinuous) return;
-                    checkAndUpdateLeaderAnthemContinuous(false);
-                }, 3000);
             } else {
                 stopLeaderAnthem(true, true);
             }
@@ -3820,7 +3802,7 @@
 
         function stopGlobalBgMusic() {
             if (globalBgMusicAudio) {
-                try { globalBgMusicAudio.pause(); globalBgMusicAudio.currentTime = 0; } catch(e) {}
+                try { globalBgMusicAudio.pause(); } catch(e) {}
             }
             bgMusicSuspendedByAnthem = false;
         }
@@ -4303,6 +4285,16 @@
 
             pauseGlobalBgMusic();
 
+            if (leaderAnthemContinuous) {
+                const leader = getTopScoringTeam();
+                if (team.anthem) {
+                    playSpecificAnthem(team, forceRestart);
+                } else if (leader && leader.anthem) {
+                    playSpecificAnthem(leader, forceRestart);
+                }
+                return;
+            }
+
             const delayMs = (Number(bgMusicState.resumeDelaySec) || 60) * 1000;
             if (delayMs > 0) {
                 anthemResumeTimer = setTimeout(() => {
@@ -4312,7 +4304,7 @@
             }
 
             if (!team.anthem) {
-                const leader = getLeaderTeam();
+                const leader = getTopScoringTeam();
                 if (leader && leader.anthem) {
                     playSpecificAnthem(leader, forceRestart);
                 } else {
@@ -4325,6 +4317,7 @@
         }
 
         function playSpecificAnthem(team, forceRestart = true) {
+            if (!team || !team.anthem) return;
             const teamId = Number(team.id || 0) || 0;
             const sameTeam = lastLeaderTeamId === teamId;
 
@@ -4333,9 +4326,7 @@
             if (sameTeam && leaderAnthemAudio && !forceRestart) {
                 syncAnthemControls();
                 if (leaderAnthemAudio.paused) {
-                    leaderAnthemAudio.play().catch(() => {
-                        stopLeaderAnthem(false, true);
-                    });
+                    leaderAnthemAudio.play().catch(() => {});
                 }
                 return;
             }
@@ -4348,23 +4339,18 @@
                 const audio = new Audio(team.anthem);
                 audio.loop = true;
                 audio.preload = 'auto';
-                audio.onerror = () => {
-                    console.warn('[ANTHEM] Team anthem failed to load:', team.name);
-                    stopLeaderAnthem(true, true);
-                };
                 audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 audio.muted = !!anthemState.mute;
                 leaderAnthemAudio = audio;
                 const playPromise = audio.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
                     playPromise.catch((err) => {
+                        if (err && err.name === 'AbortError') return;
                         console.warn('[ANTHEM] Play error:', err);
-                        stopLeaderAnthem(false, true);
                     });
                 }
             } catch (err) {
                 console.error('Anthem play error:', err);
-                stopLeaderAnthem(false, true);
             }
         }
 
