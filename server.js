@@ -357,7 +357,7 @@ app.post('/api/account/:token/save', (req, res) => {
 });
 
 // Token URL'leri için index.html sun (en son olmalı)
-app.get('/*', (_req, res) => {
+app.get('/{*path}', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 

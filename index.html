@@ -854,6 +854,19 @@
 
         <div id="team-editor-list"></div>
 
+        <div class="setting-section border border-orange-500/25" style="margin-top:16px;">
+            <h3 class="text-[10px] font-bold text-orange-400 mb-3">🗄️ VERİTABANI YEDEKLEMESİ</h3>
+            <div class="flex flex-col gap-2">
+                <div class="mini-help">Tüm ayarları, takım isimlerini, hediye eşleştirmelerini ve görselleri (logo, marş, SFX) tek dosyaya yedekleyin.</div>
+                <button onclick="exportDatabase()" class="btn btn-accent w-full">📦 DIŞA AKTAR (Yedekle)</button>
+                <div style="margin-top:8px;">
+                    <label class="text-[9px] text-white/50 font-bold tracking-widest" style="display:block;margin-bottom:6px;">İÇE AKTAR (Yedekten Yükle)</label>
+                    <input type="file" id="import-file-input" accept=".json" onchange="importDatabase(this)" style="width:100%;font-size:10px;">
+                </div>
+                <div class="mini-help" style="color:rgba(251,191,36,.75);">⚠️ İçe aktarma mevcut ayarların üzerine yazar!</div>
+            </div>
+        </div>
+
         <button onclick="saveAllSettings()" id="btn-save-all" class="btn btn-accent w-full mt-4">💾 TÜM AYARLARI KAYDET</button>
         <button onclick="toggleMenu()" class="btn btn-success w-full mt-2 sticky bottom-0">KAPAT</button>
     </div>
@@ -1111,7 +1124,112 @@
             const urlEl = document.getElementById('account-url-display');
             if (urlEl && currentToken) urlEl.value = window.location.origin + '/' + currentToken;
         }
+
+        // ── VERİTABANI DIŞA/İÇE AKTAR ───────────────────────────────────
+        async function exportDatabase() {
+            const btn = document.querySelector('[onclick="exportDatabase()"]');
+            if (btn) { btn.textContent = '⏳ Hazırlanıyor...'; btn.disabled = true; }
+            try {
+                // LocalStorage'dan ayarları al
+                const settings = getStoredStateObject();
+
+                // IndexedDB'den tüm asset'leri topla
+                const assets = {};
+                for (let i = 0; i < teamCount; i++) {
+                    const logoKey = `team:${i}:logo`;
+                    const anthemKey = `team:${i}:anthem`;
+                    const logo = await idbGet(logoKey);
+                    if (logo) assets[logoKey] = logo;
+                    const anthem = await idbGet(anthemKey);
+                    if (anthem) assets[anthemKey] = anthem;
+                }
+                // Reminder SFX
+                const sfx = await idbGet(reminderSfxAssetKey);
+                if (sfx) assets[reminderSfxAssetKey] = sfx;
+
+                const backup = {
+                    version: 2,
+                    exportDate: new Date().toISOString(),
+                    exportedBy: currentUsername || 'anonim',
+                    settings,
+                    assets
+                };
+
+                const json = JSON.stringify(backup, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const date = new Date().toISOString().slice(0, 10);
+                a.download = `sampiyonkim_yedek_${date}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                const sizeKB = Math.round(json.length / 1024);
+                showToast(`Yedek indirildi! 📦 (${sizeKB} KB)`);
+            } catch (err) {
+                console.error('Export error:', err);
+                showToast('Dışa aktarma hatası: ' + (err.message || 'Bilinmeyen hata'));
+            }
+            if (btn) { btn.textContent = '📦 DIŞA AKTAR (Yedekle)'; btn.disabled = false; }
+        }
+
+        async function importDatabase(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            const confirmed = confirm(
+                `"${file.name}" dosyasından yüklemeye onay veriyor musunuz?\n\nMevcut tüm ayarlar ve görseller üzerine yazılacak!`
+            );
+            if (!confirmed) { input.value = ''; return; }
+
+            try {
+                const text = await file.text();
+                const backup = JSON.parse(text);
+
+                if (!backup.settings && !backup.assets) {
+                    throw new Error('Geçersiz yedek dosyası formatı.');
+                }
+
+                // IndexedDB asset'lerini geri yükle
+                if (backup.assets && typeof backup.assets === 'object') {
+                    for (const [key, value] of Object.entries(backup.assets)) {
+                        if (value) await idbSet(key, value);
+                    }
+                }
+
+                // LocalStorage'a ayarları yaz
+                if (backup.settings) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.settings));
+                }
+
+                // State'i yeniden yükle ve render et
+                loadState();
+                await hydrateAssets();
+                renderGame();
+                renderTeamEditors();
+                applySavedUi();
+                renderCatalogSummary();
+                populateTeamCountSelect();
+                syncAnthemControls();
+
+                // Sunucuya da kaydet
+                if (currentToken && backup.settings) {
+                    await saveToServer(backup.settings);
+                }
+
+                const date = backup.exportDate ? ` (${backup.exportDate.slice(0,10)})` : '';
+                showToast(`İçe aktarma başarılı!${date} ✅`);
+            } catch (err) {
+                console.error('Import error:', err);
+                showToast('İçe aktarma hatası: ' + (err.message || 'Geçersiz dosya.'));
+            }
+            input.value = '';
+        }
         // ────────────────────────────────────────────────────────────────
+
 
         let socket = null;
         let isConnected = false;
