@@ -1009,6 +1009,10 @@
             </div>
 
             <div class="mt-4 pt-3 border-t border-white/10 flex flex-col gap-3">
+                <label class="flex items-center gap-2 text-[10px] text-yellow-300 font-bold cursor-pointer mt-1">
+                    <input id="sort-by-score-enabled" type="checkbox" checked onchange="updateSortByScoreSetting(this.checked)">
+                    🏆 Lider Takım (En Yüksek Puanlı) En Öne Geçsin
+                </label>
                 <label class="flex items-center gap-2 text-[10px] text-emerald-300 font-bold cursor-pointer">
                     <input id="style-float-enabled" type="checkbox" checked onchange="updateFloatSetting('enabled', this.checked)">
                     🌊 Durgun Kart Süzülme / Sallanma Efekti
@@ -1317,6 +1321,7 @@
         let syncSocket = null;
         let tiktokTargetUsername = '';
         let autoConnectEnabled = true;
+        let sortByScoreEnabled = true;
 
         async function checkAccountOnLoad() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -1414,6 +1419,7 @@
                 if (settings.giftSfxState) Object.assign(giftSfxState, settings.giftSfxState);
                 if (settings.tiktokUsername) tiktokTargetUsername = settings.tiktokUsername;
                 if (typeof settings.autoConnectEnabled === 'boolean') autoConnectEnabled = settings.autoConnectEnabled;
+                if (typeof settings.sortByScoreEnabled === 'boolean') sortByScoreEnabled = settings.sortByScoreEnabled;
                 anthemState.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 anthemState.mute = !!anthemState.mute;
                 reminderSfxAssetKey = reminderState.sfxAssetKey || reminderSfxAssetKey;
@@ -1837,6 +1843,7 @@
                     giftSortOrder,
                     tiktokUsername: tiktokTargetUsername,
                     autoConnectEnabled,
+                    sortByScoreEnabled,
                     styleState: { ...styleState },
                     reminderState: { ...reminderState },
                     anthemState: { ...anthemState },
@@ -2010,6 +2017,8 @@
             if (tInput) tInput.value = tiktokTargetUsername || '';
             const autoCb = document.getElementById('auto-connect-enabled');
             if (autoCb) autoCb.checked = autoConnectEnabled !== false;
+            const sortScoreCb = document.getElementById('sort-by-score-enabled');
+            if (sortScoreCb) sortScoreCb.checked = sortByScoreEnabled !== false;
             const giftSortSelect = document.getElementById('gift-sort-order');
             if (giftSortSelect) giftSortSelect.value = giftSortOrder;
 
@@ -2049,6 +2058,37 @@
             const floatSpVal = document.getElementById('float-speed-val');
             if (floatSpVal) floatSpVal.textContent = (styleState.floatSpeed || 4.5) + ' sn';
             applyFloatStyle();
+            updateCardOrders();
+        }
+
+        function updateSortByScoreSetting(enabled) {
+            sortByScoreEnabled = Boolean(enabled);
+            updateCardOrders();
+            debounceSave();
+        }
+
+        function updateCardOrders() {
+            if (sortByScoreEnabled === false) {
+                teams.forEach((_, index) => {
+                    const card = document.getElementById(`card-view-${index}`);
+                    if (card) card.style.order = String(index);
+                });
+                return;
+            }
+
+            const ranked = teams
+                .map((team, index) => ({ score: Number(team.score || 0) || 0, index }))
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return a.index - b.index;
+                });
+
+            ranked.forEach((item, rank) => {
+                const card = document.getElementById(`card-view-${item.index}`);
+                if (card) {
+                    card.style.order = String(rank);
+                }
+            });
         }
 
         function updateFloatSetting(prop, val) {
@@ -2128,6 +2168,7 @@
                 container.appendChild(card);
             });
             applyFloatStyle();
+            updateCardOrders();
         }
 
         function renderTeamEditors() {
@@ -3408,6 +3449,7 @@
             // 3. Hediye Gelen Takımın Kendi Marşını Anında Çal!
             playTeamAnthem(index, true);
 
+            updateCardOrders();
             debounceSave();
         }
 
