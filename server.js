@@ -240,11 +240,13 @@ function bindTikTokEvents(connection) {
   });
 
   connection.on('like', (data) => {
+    if (!data) return;
+    const profilePictureUrl = pickFirstImage(data.profilePictureUrl || data.profilePicture || data.avatarThumb || data.userDetails?.profilePictureUrl);
     const payload = {
-      nickname: data.nickname,
-      uniqueId: data.uniqueId || data.userId || data.user_id || data.nickname,
-      profilePictureUrl: data.profilePictureUrl,
-      likeCount: Number(data.likeCount || 1)
+      nickname: data.nickname || data.userDetails?.nickname || 'İzleyici',
+      uniqueId: String(data.uniqueId || data.userId || data.user_id || data.nickname || ('u_' + Math.random().toString(36).slice(2))),
+      profilePictureUrl,
+      likeCount: Number(data.likeCount || 1) || 1
     };
     io.emit('like', payload);
   });
@@ -332,6 +334,19 @@ io.on('connection', (socket) => {
         amount,
         giftName: giftName || 'Hediye',
         nickname: nickname || 'İzleyici',
+        sessionId
+      });
+    }
+  });
+
+  socket.on('send_like_event', (payload) => {
+    const { token, nickname, profilePictureUrl, likeCount, sessionId } = payload || {};
+    if (token && /^[a-f0-9]{10}$/.test(token)) {
+      io.to('account:' + token).emit('like_event_received', {
+        nickname: nickname || 'Test Beğeni',
+        uniqueId: String(nickname || 'test_user').toLowerCase().replace(/[^a-z0-9_]/g, ''),
+        profilePictureUrl: profilePictureUrl || '',
+        likeCount: Number(likeCount || 1) || 1,
         sessionId
       });
     }

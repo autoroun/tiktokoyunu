@@ -1790,6 +1790,11 @@
                     showToast(`🎁 CANLI HEDİYE: ${escapeHtml(teamName)} takımına "${escapeHtml(data.giftName || 'Hediye')}" geldi! (+${amt} puan)`);
                 }
             });
+
+            syncSocket.on('like_event_received', (data) => {
+                if (!data || !data.nickname) return;
+                handleLikeEvent(data);
+            });
         }
 
         function debounceSaveToServer(state) {
@@ -2551,6 +2556,29 @@
             renderTopLikers();
         }
 
+        function sendTestLike(count = 15) {
+            const nicknames = ['Ahmet_TR', 'Mehmet99', 'Selin_FB', 'Can_GS', 'Burak_BJK', 'Elif_TS', 'Emre_1907', 'Deniz_FC'];
+            const randomNick = nicknames[Math.floor(Math.random() * nicknames.length)];
+            const payload = {
+                nickname: randomNick,
+                uniqueId: randomNick.toLowerCase(),
+                profilePictureUrl: '',
+                likeCount: count
+            };
+
+            if (syncSocket && syncSocket.connected && currentToken) {
+                syncSocket.emit('send_like_event', {
+                    token: currentToken,
+                    nickname: randomNick,
+                    profilePictureUrl: '',
+                    likeCount: count,
+                    sessionId: SESSION_ID
+                });
+            }
+            handleLikeEvent(payload);
+            showToast(`❤️ TEST: ${randomNick} kişisinden +${count} beğeni geldi!`);
+        }
+
         function renderTopLikers() {
             let container = document.getElementById('top-likers-container');
             if (!container) {
@@ -2567,27 +2595,37 @@
             }
             
             const likersArr = Object.values(topLikers).sort((a, b) => b.likeCount - a.likeCount).slice(0, 6);
-            if (likersArr.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
             
-            let html = '<h3 style="text-align:center; color:#00ffcc; font-size:16px; font-weight:900; margin-bottom:1rem; text-shadow: 0 0 10px rgba(0,255,204,0.5);">🔥 EN ÇOK BEĞENENLER 🔥</h3>';
+            let html = '<div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:1rem;">';
+            html += '<h3 style="text-align:center; color:#00ffcc; font-size:16px; font-weight:900; margin:0; text-shadow: 0 0 10px rgba(0,255,204,0.5);">🔥 EN ÇOK BEĞENENLER 🔥</h3>';
+            html += '<button type="button" onclick="sendTestLike(15)" class="btn btn-secondary" style="font-size:9px; padding:3px 8px; white-space:nowrap;">❤️ TEST BEĞENİSİ</button>';
+            html += '</div>';
+
             html += '<div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; max-width:600px; margin:0 auto;">';
             
-            likersArr.forEach((liker, i) => {
-                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-                const img = liker.profilePictureUrl || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==';
-                const medalHtml = medal ? `<div style="position:absolute; top:-10px; left:-10px; font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${medal}</div>` : '';
-                html += `
-                    <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,255,204,0.3); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-                        ${medalHtml}
-                        <img src="${escapeHtml(img)}" style="width:48px; height:48px; border-radius:50%; border:2px solid #00ffcc; object-fit:cover; margin-bottom:6px;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg=='">
-                        <div style="color:#fff; font-size:11px; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(liker.nickname)}</div>
-                        <div style="color:#00ffcc; font-size:12px; font-weight:900; margin-top:2px;">❤️ ${liker.likeCount}</div>
-                    </div>
-                `;
-            });
+            for (let i = 0; i < 6; i++) {
+                const liker = likersArr[i];
+                if (liker) {
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+                    const img = liker.profilePictureUrl || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==';
+                    const medalHtml = medal ? `<div style="position:absolute; top:-10px; left:-10px; font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${medal}</div>` : '';
+                    html += `
+                        <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,255,204,0.3); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                            ${medalHtml}
+                            <img src="${escapeHtml(img)}" style="width:48px; height:48px; border-radius:50%; border:2px solid #00ffcc; object-fit:cover; margin-bottom:6px;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg=='">
+                            <div style="color:#fff; font-size:11px; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(liker.nickname)}</div>
+                            <div style="color:#00ffcc; font-size:12px; font-weight:900; margin-top:2px;">❤️ ${liker.likeCount}</div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="background:rgba(0,0,0,0.2); border:1px dashed rgba(255,255,255,0.15); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.6; min-height:96px;">
+                            <div style="font-size:20px; margin-bottom:4px;">❤️</div>
+                            <div style="color:rgba(255,255,255,0.4); font-size:9px; font-weight:bold; text-align:center;">${i + 1}. Sıra Bekleniyor...</div>
+                        </div>
+                    `;
+                }
+            }
             
             html += '</div>';
             container.innerHTML = html;
@@ -3343,6 +3381,8 @@
             } catch (err) {}
             leaderAnthemAudio = null;
             if (resetLeader) lastLeaderTeamId = null;
+            bgMusicSuspendedByAnthem = false;
+            playGlobalBgMusic();
         }
 
         function syncAnthemControls() {
@@ -3778,11 +3818,24 @@
 
             primeAudioPlayback();
             if (!globalBgMusicAudio) {
-                globalBgMusicAudio = new Audio(globalBgMusicDataUrl);
-                globalBgMusicAudio.loop = true;
+                try {
+                    globalBgMusicAudio = new Audio(globalBgMusicDataUrl);
+                    globalBgMusicAudio.loop = true;
+                    globalBgMusicAudio.onerror = () => {
+                        console.warn('[BG MUSIC] Audio error detected, resetting player...');
+                        globalBgMusicAudio = null;
+                        bgMusicSuspendedByAnthem = false;
+                        setTimeout(playGlobalBgMusic, 2500);
+                    };
+                } catch (e) {
+                    console.error('[BG MUSIC] Exception initializing Audio:', e);
+                    return;
+                }
             }
             globalBgMusicAudio.volume = Math.max(0, Math.min(1, Number(bgMusicState.volume ?? 50) / 100));
-            globalBgMusicAudio.play().catch(() => {});
+            globalBgMusicAudio.play().catch((err) => {
+                console.warn('[BG MUSIC] Play error caught:', err);
+            });
 
             if (ytPlayer && typeof ytPlayer.unMute === 'function' && !bgState.ytMute) {
                 try { ytPlayer.unMute(); } catch(e) {}
@@ -3986,7 +4039,9 @@
             if (sameTeam && leaderAnthemAudio && !forceRestart) {
                 syncAnthemControls();
                 if (leaderAnthemAudio.paused) {
-                    leaderAnthemAudio.play().catch(() => {});
+                    leaderAnthemAudio.play().catch(() => {
+                        stopLeaderAnthem(false);
+                    });
                 }
                 return;
             }
@@ -3999,15 +4054,23 @@
                 const audio = new Audio(team.anthem);
                 audio.loop = true;
                 audio.preload = 'auto';
+                audio.onerror = () => {
+                    console.warn('[ANTHEM] Team anthem failed to load:', team.name);
+                    stopLeaderAnthem(true);
+                };
                 audio.volume = Math.max(0, Math.min(1, Number(anthemState.volume ?? 0.9) || 0));
                 audio.muted = !!anthemState.mute;
                 leaderAnthemAudio = audio;
                 const playPromise = audio.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
-                    playPromise.catch(() => {});
+                    playPromise.catch((err) => {
+                        console.warn('[ANTHEM] Play error:', err);
+                        stopLeaderAnthem(false);
+                    });
                 }
             } catch (err) {
                 console.error('Anthem play error:', err);
+                stopLeaderAnthem(false);
             }
         }
 
